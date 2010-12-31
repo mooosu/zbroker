@@ -1,0 +1,25 @@
+packet{
+   :cmd => OPEN | READ | WRITE,
+   :body => { ... } 
+}
+
+typedef unsigned int  zcursor_handle;
+
+zcursor_handle open(string query );
+
+options={
+   :skip=> offset , :limit => limit,:fields=>[]
+}
+Return value: json [doc1,doc2,...]
+string read(zcursor_handle handle ,BSONObj options{});
+
+
+using operator '$set' to update data. @value as '$set' value
+query: json {'brand'=>'诺基亚/nokia'}
+value: value  {'brand'=>'诺基亚'}
+options:{ :multi=>true ,:safe=>false }
+bool write( string query , string value , BSONObj options );
+
+void close( zcursor_handle handle );
+
+
