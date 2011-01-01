@@ -4,6 +4,7 @@
 #include <unistd.h>
 #include <iostream>
 #include "common.h"
+
 using namespace std;
 using namespace mongo;
 typedef struct{
@@ -45,9 +46,10 @@ class processor{
           processor(zmq::socket_t *socket ,const char* docset_name, size_t size, string doc_server ,
                     int port=27017 ,size_t batch_size=100)
           {
+               BSONObj obj;
                m_socket = socket;
-               m_read_broker.open(BSONObj());
-               m_update_broker.open(BSONObj());
+               m_read_broker.open(obj);
+               m_update_broker.open(obj);
                m_request_buf = NULL;
                m_request_buf_size = 0;
           }
@@ -145,4 +147,3 @@ int main () {
     }
     return 0;
 }
-

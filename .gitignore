@@ -1,0 +1,5 @@
+Makefile
+Makefile.in
+configure
+.deps
+config.*
