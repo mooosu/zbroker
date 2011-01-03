@@ -12,7 +12,7 @@ env.Append( CPPFLAGS=" -ggdb3 -O0" )
 env.Append( LINKFLAGS=" -Wl,--as-needed -Wl,-zdefs " )
 
 
-boostLibs = [ "thread" , "program_options" , "system" ]
+boostLibs = [ "thread" , "program_options" , "system","unit_test_framework" ]
 otherLibs = ['zmq']
 conf = Configure(env)
 for lib in boostLibs:
@@ -31,4 +31,4 @@ env.Program( "src/zbroker" , allClientFiles )
 # tests
 clientEnv = env.Clone();
 clientTests = []
-clientTests += [ clientEnv.Program( "test/broker_test" , [ "test/broker_test.cc" ] ) ]
+clientTests += [ clientEnv.Program( "test/broker_test" , [ "test/broker_test.cc","src/broker.cc" ] ) ]

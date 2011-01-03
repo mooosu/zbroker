@@ -81,18 +81,23 @@ void broker::check_status()
           throw broker_not_connected("broker not connected");
      }
 }
-vector<string>& broker::query()
+vector<string>& broker::query(mongo_sort sort)
 {
      BSONObj doc;
      int queryOptions = 0 ;
      int batchSize = 0;
+     Query query= Query(m_conditions);
+     query.sort("_id",(int)sort);
      auto_ptr<DBClientCursor> cursor = m_connection.query(m_docset, 
-               Query(m_conditions),m_limit,m_skip,&m_fields,queryOptions,batchSize);
+               query,m_limit,m_skip,&m_fields,queryOptions,batchSize);
      m_json_doc_cache.clear();
      while( cursor->more() ) {
           doc = cursor->next();
           m_json_doc_cache.push_back(doc.jsonString());
      }
+     BSONElement e;
+     BOOST_ASSERT( doc.getObjectID(e));
+     m_last_doc_id = e.OID().str();
      return m_json_doc_cache ;
 }
 
@@ -103,6 +108,7 @@ void broker::read()
           if( docs.size() == 0 ){
                cout << "no more items, sleep(5)" << endl;
                sleep(5);
+               continue;
           }
           for(size_t i = 0 ; i< docs.size() ; i++ ){
                m_queue.push(docs[i]);

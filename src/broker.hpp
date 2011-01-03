@@ -2,6 +2,10 @@
 namespace zbroker{
      using namespace std;
      using namespace mongo;
+     enum mongo_sort{
+          Asc = 1,
+          Desc = -1
+     };
      class broker{
           private:
                size_t m_size;
@@ -11,6 +15,7 @@ namespace zbroker{
                DBClientConnection m_connection;
 
                string m_docset ; 
+               string m_last_doc_id;
                vector<string> m_json_doc_cache;
 
                //config
@@ -33,9 +38,11 @@ namespace zbroker{
                bool    m_inited;
                bool    m_connected;
           protected:
-
+#ifndef BOOST_TEST_MODULE
                void init(BSONObj &options);
-               vector<string>& query();
+               vector<string>& query(mongo_sort sort=Asc);
+#endif
+
                void check_status();
 
           public:
@@ -51,6 +58,11 @@ namespace zbroker{
                // }
                broker();
                broker(BSONObj options );
+
+#ifdef BOOST_TEST_MODULE
+               void init(BSONObj &options);
+               vector<string>& query(mongo_sort sort=Asc);
+#endif
                void open(BSONObj& options );
                void read();
                void update();
@@ -69,6 +81,7 @@ namespace zbroker{
                     check_status();
                     return m_queue.get_size(); 
                }
+               DBClientConnection& get_connection(){ return m_connection;}
                string get_connection_string(){ return m_connection_string; }
                string get_docset(){ return m_docset; }
                string get_host(){ return m_host; }
