@@ -20,7 +20,7 @@ namespace zbroker{
      class sized_queue: private boost::noncopyable
      {
           private:
-               size_t m_size ;
+               size_t m_limit_size ;
                std::queue<T> m_queue;
                boost::condition m_cond_can_push, m_cond_can_pop;
                boost::mutex m_monitor;
@@ -28,22 +28,19 @@ namespace zbroker{
                typedef boost::mutex::scoped_lock lock;
 
                sized_queue(size_t size) {
-                    m_size = size;
+                    m_limit_size = size;
                }
                sized_queue() {
-                    m_size = 100;
+                    m_limit_size = 100;
                }
                void set_size(size_t size){
-                    m_size = size;
+                    m_limit_size = size;
                }
-               size_t get_size(){
-                    return m_size;
-               }
+               size_t size(){ return m_queue.size(); }
+               size_t get_limit_size(){ return m_limit_size; }
                T pop(size_t seconds=0) {
-
                     lock lk(m_monitor);
                     if( m_queue.size() == 0 ){
-
                          if( seconds> 0 ){
                               boost::xtime xt;
                               boost::xtime_get(&xt, boost::TIME_UTC);
@@ -61,10 +58,21 @@ namespace zbroker{
                     m_cond_can_push.notify_one();
                     return item;
                }
-               int push(T item) {
+               int push(T item, size_t seconds=0) {
                     lock lk(m_monitor);
-                    if( m_queue.size() >= m_size ){
-                         m_cond_can_push.wait(lk);
+                    if( m_queue.size() >= m_limit_size ){
+                         m_cond_can_pop.notify_one();
+                         if( seconds> 0 ){
+                              boost::xtime xt;
+                              boost::xtime_get(&xt, boost::TIME_UTC);
+                              xt.sec += seconds;
+                              if(!m_cond_can_push.timed_wait(lk,xt)){
+                                   throw broker_timeout("no consumer"); 
+                              }
+                         } else {
+                              m_cond_can_push.wait(lk);
+                         }
+
                     }
                     m_queue.push(item);
                     m_cond_can_pop.notify_one();

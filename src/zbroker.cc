@@ -48,8 +48,8 @@ class processor{
           {
                BSONObj obj;
                m_socket = socket;
-               m_read_broker.open(obj);
-               m_update_broker.open(obj);
+               m_read_broker.open(&obj);
+               m_update_broker.open(&obj);
                m_request_buf = NULL;
                m_request_buf_size = 0;
           }

@@ -8,6 +8,7 @@ namespace zbroker{
      };
      class broker{
           private:
+               boost::mutex m_rewind_mutex;
                size_t m_size;
                zbroker::sized_queue<string> m_queue;
 
@@ -28,6 +29,7 @@ namespace zbroker{
                string  m_collection;
                int     m_limit;
                int     m_skip;
+               int     m_queue_size;
                //conditions
                BSONObj m_conditions;
                // fields
@@ -37,9 +39,16 @@ namespace zbroker{
                bool    m_do_exit;
                bool    m_inited;
                bool    m_connected;
+               bool    m_reach_end;
+               // stats
+               size_t m_query_doc_count;
+               size_t m_query_count;
+               size_t m_read_count;
+               size_t m_update_count;
           protected:
+               void reset();
 #ifndef BOOST_TEST_MODULE
-               void init(BSONObj &options);
+               void init(BSONObj *options);
                vector<string>& query(mongo_sort sort=Asc);
 #endif
 
@@ -57,18 +66,23 @@ namespace zbroker{
                //   :fields => ['brand',...]
                // }
                broker();
-               broker(BSONObj options );
+               broker(BSONObj& options );
 
 #ifdef BOOST_TEST_MODULE
-               void init(BSONObj &options);
+               void init(BSONObj *options);
                vector<string>& query(mongo_sort sort=Asc);
 #endif
-               void open(BSONObj& options );
-               void read();
+               void open(BSONObj* options =NULL );
+               void read(size_t seconds = 0);
                void update();
 
 
                void set_exit( ){ m_do_exit = true; }
+               void rewind() {
+                    boost::mutex::scoped_lock lock(m_rewind_mutex);
+                    m_last_doc_id.clear();
+                    m_reach_end = false;
+               }
                string pop(size_t seconds = 0){ 
                     check_status();
                     return m_queue.pop(seconds); 
@@ -79,7 +93,7 @@ namespace zbroker{
                }
                size_t size(){
                     check_status();
-                    return m_queue.get_size(); 
+                    return m_queue.size(); 
                }
                DBClientConnection& get_connection(){ return m_connection;}
                string get_connection_string(){ return m_connection_string; }
@@ -90,9 +104,16 @@ namespace zbroker{
                string get_collection(){ return m_collection; }
                int    get_limit() { return m_limit; }
                int    get_skip() { return m_skip; }
+               int    get_queue_size(){ return m_queue_size; }
                bool   inited() { return m_inited; }
                bool   connected() { return m_connected; }
+               bool   reach_end() { return m_reach_end; }
                BSONObj get_fields() { return m_fields; }
                BSONObj get_conditions(){ return m_conditions; }
+               size_t  get_query_doc_count(){ return m_query_doc_count;}
+               size_t  get_query_count() { return m_query_count; }
+               size_t  get_read_count() { return m_read_count; }
+               size_t  get_update_count() { return m_update_count; }
+               string& get_last_doc_id() { return m_last_doc_id; }
      };
 };

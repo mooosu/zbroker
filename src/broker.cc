@@ -1,29 +1,39 @@
 #include "common.h"
 using namespace zbroker;
+using namespace boost;
 broker::broker()
 {
-     m_do_exit = true;
+     reset();
+}
+broker::broker(BSONObj& options )
+{
+     reset();
+     m_options = options.copy();
+}
+void broker::reset()
+{
+     m_do_exit = false;
 
      m_inited = false;
      m_connected = false;
+     m_reach_end = false;
      m_port = 0;
      m_limit = 0;
      m_skip = 0 ;
-     m_queue.set_size(0);
+     m_queue_size = 0;
+     //stats
+     m_query_doc_count = 0;
+     m_query_count = 0;
+     m_read_count = 0;
+     m_update_count = 0;
+     m_queue.set_size(m_queue_size);
 }
-broker::broker(BSONObj options )
-{
-     m_do_exit = true;
-
-     m_inited = false;
-     m_connected = false;
-
-     m_options = options.copy();
-}
-void broker::init(BSONObj &options)
+void broker::init(BSONObj *options)
 {
      if(!m_inited){
-          m_options = options.copy();
+          BOOST_ASSERT(!(m_options.isEmpty() && options == NULL ));
+          if( options )
+               m_options = options->copy();
           m_host = m_options.getStringField("host");
           m_port = m_options.getIntField("port");
           m_database = m_options.getStringField("database");
@@ -31,6 +41,7 @@ void broker::init(BSONObj &options)
 
           m_limit = m_options.getIntField("limit");
           m_skip = m_options.getIntField("skip");
+          m_queue_size = m_options.getIntField("queue_size");
 
           m_conditions = m_options.getObjectField("conditions");
           m_fields = m_options.getObjectField("fields");
@@ -48,16 +59,20 @@ void broker::init(BSONObj &options)
                throw broker_argument_error("collection must not be empty");
           }
           if( m_limit == INT_MIN ){
-               m_limit = 0 ;
+               m_limit = 1000 ;
           }
           if( m_skip  == INT_MIN ){
                m_skip = 0 ;
           }
+          if( m_queue_size == INT_MIN ){
+               m_queue_size = 100;
+          }
           m_docset = m_database + "." + m_collection;
+          m_queue.set_size(m_queue_size );
           m_inited = true;
      }
 }
-void broker::open(BSONObj& options )
+void broker::open(BSONObj* options )
 {
      init(options);
      size_t buf_size = m_host.size() + 10;
@@ -84,34 +99,61 @@ void broker::check_status()
 vector<string>& broker::query(mongo_sort sort)
 {
      BSONObj doc;
+     BSONObjBuilder builder;
+     BSONObj new_conditions;
      int queryOptions = 0 ;
      int batchSize = 0;
-     Query query= Query(m_conditions);
+
+     boost::mutex::scoped_lock lock(m_rewind_mutex);
+
+     if( !m_last_doc_id.empty() ){
+          new_conditions = builder.appendElements(m_conditions).append("_id",BSONObjBuilder().append("$gt",m_last_doc_id).obj()).obj();
+     } else {
+          new_conditions = m_conditions ;
+     }
+     Query query= Query(new_conditions);
      query.sort("_id",(int)sort);
      auto_ptr<DBClientCursor> cursor = m_connection.query(m_docset, 
                query,m_limit,m_skip,&m_fields,queryOptions,batchSize);
+     bool has_docs = cursor->more();
      m_json_doc_cache.clear();
+     m_last_doc_id.clear();
      while( cursor->more() ) {
           doc = cursor->next();
           m_json_doc_cache.push_back(doc.jsonString());
      }
      BSONElement e;
-     BOOST_ASSERT( doc.getObjectID(e));
-     m_last_doc_id = e.OID().str();
+     if( has_docs ){
+          BOOST_ASSERT( doc.getObjectID(e));
+          m_last_doc_id = e.OID().str();
+     }
+     m_query_count ++;
      return m_json_doc_cache ;
 }
 
-void broker::read()
+void broker::read(size_t seconds)
 {
      while( !m_do_exit ){
+          cout << "reading ..." << endl;
+          m_read_count ++;
           vector<string> docs = query();
           if( docs.size() == 0 ){
+               m_reach_end = true;
                cout << "no more items, sleep(5)" << endl;
                sleep(5);
                continue;
           }
           for(size_t i = 0 ; i< docs.size() ; i++ ){
-               m_queue.push(docs[i]);
+               try{
+                    m_queue.push(docs[i],seconds);
+               }catch( broker_timeout ex ){
+                    if( m_do_exit ){
+                         cout << "get exiting" << endl;
+                         break;
+                    } else{
+                         i--;
+                    }
+               }
           }
      }
 }
@@ -119,6 +161,7 @@ void broker::read()
 void broker::update()
 {
      while(!m_do_exit){
+          m_update_count ++;
           string json_query=m_queue.pop();
           BSONObj query =fromjson(json_query);
           m_connection.query(m_docset,query);

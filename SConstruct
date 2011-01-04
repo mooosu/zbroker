@@ -32,3 +32,4 @@ env.Program( "src/zbroker" , allClientFiles )
 clientEnv = env.Clone();
 clientTests = []
 clientTests += [ clientEnv.Program( "test/broker_test" , [ "test/broker_test.cc","src/broker.cc" ] ) ]
+clientTests += [ clientEnv.Program( "test/bson_test" , [ "test/bson_test.cc"] ) ]
