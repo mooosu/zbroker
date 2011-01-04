@@ -19,7 +19,7 @@ struct broker_test
                         \"conditions\":{\"brand\":\"Nokia\"}, \
                         \"fields\":{\"category\":1,\"brand\":1}}";
           m_json_string2 ="{\"host\":\"192.168.1.86\",\"port\":27017,\"database\":\"zbroker\", \
-                         \"collection\":\"broker\",\"skip\":0,\"limit\":1000,\"queue_size\":2, \
+                         \"collection\":\"broker\",\"skip\":0,\"limit\":100,\"queue_size\":2, \
                          \"conditions\":{\"brand\":\"Nokia\"}, \
                          \"fields\":{\"category\":1,\"brand\":1}}";
 
@@ -133,16 +133,51 @@ void *read_queue_thread(void *arg)
 {
      broker *bk= (broker*)arg;
      bk->open();
-     bk->read(1);
-     return (NULL);
-}
-void* update_queue_thread( void *arg )
-{
-     broker *bk= (broker*) arg;
-     bk->update();
+     bk->read();
      return (NULL);
 }
 BOOST_AUTO_TEST_CASE(test_read)
+{
+     BSONObj obj = fromjson(m_json_string2);
+     const int docs_count = 888;
+     broker test_bk;
+     test_bk.open(&obj);
+     test_bk.get_connection().dropCollection("zbroker.broker");
+
+     char buffer[1024];
+     const char* json = "{\"brand\":\"Nokia\",\"category\":\"Category_%d\"}";
+     for( int i =0 ; i< docs_count ;i++){
+          sprintf(buffer,json,i);
+          test_bk.get_connection().insert(test_bk.get_docset(),fromjson(buffer));
+     }
+     BOOST_CHECK_EQUAL( test_bk.query().size() , 100);
+
+     broker bk_read(obj);
+
+     pthread_t worker;
+     pthread_create (&worker, NULL, read_queue_thread, (void *) &bk_read);
+     int limit = 2;
+     sleep(1);
+     vector<string> docs ;
+     bool found = false;
+     size_t size = 0;
+     while(true){
+          if( bk_read.reach_end()) break;
+          docs.push_back(bk_read.pop());
+          if(docs.back().find("Category_887") != string::npos ){
+               BOOST_CHECK_EQUAL(bk_read.size(),0);
+               BOOST_CHECK(docs.back().find(bk_read.get_last_doc_id()) != string::npos );
+               found = true;
+               break;
+          }
+     }
+     bk_read.set_exit();
+     BOOST_CHECK(found);
+     BOOST_CHECK_EQUAL(bk_read.get_query_count(),docs_count/bk_read.get_limit()+1);
+     BOOST_CHECK_EQUAL(bk_read.get_queue_size(),2);
+     sleep(6);
+}
+BOOST_AUTO_TEST_CASE(test_read_update)
 {
      BSONObj obj = fromjson(m_json_string2);
      const int docs_count = 100;
@@ -157,37 +192,75 @@ BOOST_AUTO_TEST_CASE(test_read)
           test_bk.get_connection().insert(test_bk.get_docset(),fromjson(buffer));
      }
      BOOST_CHECK_EQUAL( test_bk.query().size() , docs_count);
+     BSONObj bq = BSONObjBuilder().append("category",BSONObjBuilder().append("$gt","Category_90").obj()).obj();
+     BSONObj new_value = BSONObjBuilder().append("brand","newnew").obj();
+     //update one doc
+     test_bk.get_connection().update("zbroker.broker",bq,new_value,false,false);
+     bq = BSONObjBuilder().append("category",BSONObjBuilder().append("$gt","Category_80").append("$lt","Category_90").obj()).obj();
+     new_value = BSONObjBuilder().append("$set",BSONObjBuilder().append("brand","new").obj()).obj();
+     test_bk.get_connection().update("zbroker.broker",bq,new_value,false,true);
 
-     broker bk_read(obj);
+     OID id ;
+     id.init(test_bk.get_last_doc_id());
+
+     BSONElement e;
+     sprintf(buffer,"{ \"_id\" : { \"$oid\" : \"%s\" }}",test_bk.get_last_doc_id().c_str());
+     BSONObj bo = fromjson(buffer);
+     e = bo.getField("_id");
+     cout << "type: "<< e.type() << endl;
+     
+     auto_ptr< DBClientCursor > cursor = test_bk.get_connection().query(test_bk.get_docset(),Query(BSONObjBuilder().append("_id",e.OID()).obj()));
+     BOOST_CHECK( cursor->more());
+
+}
+
+void* update_queue_thread( void *arg )
+{
+     broker *bk= (broker*) arg;
+     bk->open();
+     bk->update();
+     return (NULL);
+}
+BOOST_AUTO_TEST_CASE(test_update)
+{
+     BSONObj obj = fromjson(m_json_string2);
+     const int docs_count = 100;
+     broker test_bk;
+     test_bk.open(&obj);
+     test_bk.get_connection().dropCollection("zbroker.broker");
+
+     char buffer[1024];
+     const char* json = "{\"brand\":\"Nokia\",\"category\":\"Category_%d\"}";
+     for( int i =0 ; i< docs_count ;i++){
+          sprintf(buffer,json,i);
+          test_bk.get_connection().insert(test_bk.get_docset(),fromjson(buffer));
+     }
+     vector<string> strs = test_bk.query();
+     BOOST_CHECK_EQUAL( strs.size() , docs_count);
+
+     vector<string> ids ;
+     broker bk_update(obj);
 
      pthread_t worker;
-     pthread_create (&worker, NULL, read_queue_thread, (void *) &bk_read);
-     int limit = 2;
+     pthread_create (&worker, NULL, update_queue_thread, (void *) &bk_update);
      sleep(1);
-     vector<string> docs ;
-     bool found = false;
-     size_t size = 0;
-     while(true){
-          if( bk_read.reach_end()) break;
-          docs.push_back(bk_read.pop());
-          cout << "back: " << docs.back() << ",size: " << bk_read.size() << endl;
-          if(docs.back().find("Category_99") != string::npos ){
-               BOOST_CHECK_EQUAL(bk_read.size(),0);
-               BOOST_CHECK(docs.back().find(bk_read.get_last_doc_id()) != string::npos );
-               found = true;
-               break;
-          }
+     for(int i=0;i< strs.size() ; i++ ){
+          BSONObj tmp = fromjson(strs[i]);
+          BSONElement e;
+          tmp.getObjectID(e);
+          sprintf(buffer,"{\"query\":{\"_id\":{\"$oid\":\"%s\"}}, \
+                    \"doc\":{\"brand\":\"updated\",\"status\":1234}, \
+                    \"upsert\":false,\"multi\":false}"
+                    ,e.OID().str().c_str());
+          bk_update.push(buffer);
      }
-     bk_read.set_exit();
-     BOOST_CHECK_EQUAL(bk_read.get_query_count(),1);
-     BOOST_CHECK_EQUAL(bk_read.get_read_count(),2);
-     BOOST_CHECK_EQUAL(bk_read.get_queue_size(),2);
-     sleep(6);
+     while(bk_update.size() != 0 );
+     sleep(1);
+     BOOST_CHECK_EQUAL(bk_update.get_update_count(),strs.size());
+     bk_update.set_exit();
+     bk_update.push("exit");
+     sleep(2);
 }
-BOOST_AUTO_TEST_CASE(test_read_end)
-{
-}
-
 BOOST_AUTO_TEST_SUITE_END();
 
 /*

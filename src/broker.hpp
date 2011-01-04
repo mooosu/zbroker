@@ -43,7 +43,6 @@ namespace zbroker{
                // stats
                size_t m_query_doc_count;
                size_t m_query_count;
-               size_t m_read_count;
                size_t m_update_count;
           protected:
                void reset();
@@ -66,6 +65,7 @@ namespace zbroker{
                //   :fields => ['brand',...]
                // }
                broker();
+               ~broker();
                broker(BSONObj& options );
 
 #ifdef BOOST_TEST_MODULE
@@ -77,7 +77,7 @@ namespace zbroker{
                void update();
 
 
-               void set_exit( ){ m_do_exit = true; }
+               void set_exit(){ m_do_exit = true; }
                void rewind() {
                     boost::mutex::scoped_lock lock(m_rewind_mutex);
                     m_last_doc_id.clear();
@@ -112,7 +112,6 @@ namespace zbroker{
                BSONObj get_conditions(){ return m_conditions; }
                size_t  get_query_doc_count(){ return m_query_doc_count;}
                size_t  get_query_count() { return m_query_count; }
-               size_t  get_read_count() { return m_read_count; }
                size_t  get_update_count() { return m_update_count; }
                string& get_last_doc_id() { return m_last_doc_id; }
      };

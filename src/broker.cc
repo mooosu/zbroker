@@ -10,6 +10,9 @@ broker::broker(BSONObj& options )
      reset();
      m_options = options.copy();
 }
+broker::~broker()
+{
+}
 void broker::reset()
 {
      m_do_exit = false;
@@ -24,7 +27,6 @@ void broker::reset()
      //stats
      m_query_doc_count = 0;
      m_query_count = 0;
-     m_read_count = 0;
      m_update_count = 0;
      m_queue.set_size(m_queue_size);
 }
@@ -107,7 +109,9 @@ vector<string>& broker::query(mongo_sort sort)
      boost::mutex::scoped_lock lock(m_rewind_mutex);
 
      if( !m_last_doc_id.empty() ){
-          new_conditions = builder.appendElements(m_conditions).append("_id",BSONObjBuilder().append("$gt",m_last_doc_id).obj()).obj();
+          OID id;
+          id.init(m_last_doc_id);
+          new_conditions = builder.appendElements(m_conditions).append("_id",BSONObjBuilder().append("$gt",id).obj()).obj();
      } else {
           new_conditions = m_conditions ;
      }
@@ -134,8 +138,6 @@ vector<string>& broker::query(mongo_sort sort)
 void broker::read(size_t seconds)
 {
      while( !m_do_exit ){
-          cout << "reading ..." << endl;
-          m_read_count ++;
           vector<string> docs = query();
           if( docs.size() == 0 ){
                m_reach_end = true;
@@ -143,7 +145,7 @@ void broker::read(size_t seconds)
                sleep(5);
                continue;
           }
-          for(size_t i = 0 ; i< docs.size() ; i++ ){
+          for(size_t i = 0 ; !m_do_exit && i< docs.size() ; i++ ){
                try{
                     m_queue.push(docs[i],seconds);
                }catch( broker_timeout ex ){
@@ -157,13 +159,27 @@ void broker::read(size_t seconds)
           }
      }
 }
-
+/* op = {
+ *   :query=>{"_id"=>ObjectID("doc_id")},
+ *   :doc=>{"brand"=>new_value} || :doc=>{"$set"=>{"brand"=>new_value}},
+ *   :upsert => false,:multi=>true
+ * }
+ *
+ */
 void broker::update()
 {
      while(!m_do_exit){
+          string json =m_queue.pop();
+          if(json.size() == 4 && json.find("exit")!=string::npos){
+               cout << "get exit signal" << endl;
+               break;
+          }
+          BSONObj obj =fromjson(json);
+          BSONObj query = obj.getObjectField("query");
+          BSONObj doc = obj.getObjectField("doc");
+          bool upsert = obj.getBoolField("upsert");
+          bool multi = obj.getBoolField("multi");
+          m_connection.update(m_docset,query,doc,upsert,multi);
           m_update_count ++;
-          string json_query=m_queue.pop();
-          BSONObj query =fromjson(json_query);
-          m_connection.query(m_docset,query);
      }
 }

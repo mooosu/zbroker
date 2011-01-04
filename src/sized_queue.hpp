@@ -41,6 +41,7 @@ namespace zbroker{
                T pop(size_t seconds=0) {
                     lock lk(m_monitor);
                     if( m_queue.size() == 0 ){
+                         m_cond_can_push.notify_one();
                          if( seconds> 0 ){
                               boost::xtime xt;
                               boost::xtime_get(&xt, boost::TIME_UTC);
@@ -51,7 +52,6 @@ namespace zbroker{
                          }else {
                               m_cond_can_pop.wait(lk);
                          }
-                         m_cond_can_pop.wait(lk);
                     }
                     T item = m_queue.front();
                     m_queue.pop();
