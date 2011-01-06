@@ -15,18 +15,19 @@ struct broker_test
      string m_json_string3;
      broker_test(){
           m_json_string ="{\"host\":\"192.168.1.86\",\"port\":27017,\"database\":\"zbroker\", \
-                        \"collection\":\"broker\",\"skip\":100,\"limit\":1000, \"queue_size\":100, \
-                        \"conditions\":{\"brand\":\"Nokia\"}, \
-                        \"fields\":{\"category\":1,\"brand\":1}}";
+                        \"collection\":\"broker\",\"parameters\":{\"skip\":100,\"limit\":1000, \"queue_size\":100}, \
+                        \"conditions\":{\"brand\":\"Nokia\"},\"fields\":{\"category\":1,\"brand\":1}, \
+                        \"upsert\":false,\"multi\":true,\"purpose\":1}";
+
           m_json_string2 ="{\"host\":\"192.168.1.86\",\"port\":27017,\"database\":\"zbroker\", \
-                         \"collection\":\"broker\",\"skip\":0,\"limit\":100,\"queue_size\":2, \
-                         \"conditions\":{\"brand\":\"Nokia\"}, \
-                         \"fields\":{\"category\":1,\"brand\":1}}";
+                        \"collection\":\"broker\",\"parameters\":{\"skip\":0,\"limit\":100, \"queue_size\":2}, \
+                        \"conditions\":{\"brand\":\"Nokia\"}, \"fields\":{\"category\":1,\"brand\":1}, \
+                        \"upsert\":false,\"multi\":true,\"purpose\":1}";
 
           m_json_string3 ="{\"host\":\"192.168.1.86\",\"port\":27017,\"database\":\"zbroker\", \
-                        \"collection\":\"broker\",\"skip\":0,\"limit\":1000, \"queue_size\":100, \
-                        \"conditions\":{\"brand\":\"Nokia\"}, \
-                        \"fields\":{\"category\":1,\"brand\":1}}";
+                        \"collection\":\"broker\",\"parameters\":{\"skip\":0,\"limit\":1000, \"queue_size\":100}, \
+                        \"conditions\":{\"brand\":\"Nokia\"}, \"fields\":{\"category\":1,\"brand\":1}, \
+                        \"upsert\":false,\"multi\":true,\"purpose\":1}";
      }
 };
 
@@ -36,10 +37,11 @@ BOOST_FIXTURE_TEST_SUITE(mytest, broker_test);
 BOOST_AUTO_TEST_CASE(test_fields)
 {
      BSONObj obj = fromjson(m_json_string);
+     BSONObj parameters = obj.getObjectField("parameters");
      BOOST_CHECK_EQUAL(obj.getIntField("port"),27017);
-     BOOST_CHECK_EQUAL(obj.getIntField("skip"),100);
-     BOOST_CHECK_EQUAL(obj.getIntField("limit"),1000);
-     BOOST_CHECK_EQUAL(obj.getIntField("queue_size"),100);
+     BOOST_CHECK_EQUAL(parameters.getIntField("skip"),100);
+     BOOST_CHECK_EQUAL(parameters.getIntField("limit"),1000);
+     BOOST_CHECK_EQUAL(parameters.getIntField("queue_size"),100);
      BOOST_CHECK_EQUAL(obj.getStringField("host"),"192.168.1.86");
      BOOST_CHECK_EQUAL(obj.getStringField("database"),"zbroker");
      BOOST_CHECK_EQUAL(obj.getStringField("collection"),"broker");

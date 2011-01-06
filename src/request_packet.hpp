@@ -1,4 +1,3 @@
-
 #ifndef REQUEST_PACKET_HPP
 #define REQUEST_PACKET_HPP
 
@@ -9,10 +8,17 @@
 class request_packet
 {
      public:
-          enum { header_length = 4 };
-          enum { max_body_length = 512 };
+          enum { header_length = 16 };
+          enum { max_body_length = 1024*1024};
 
           request_packet() : body_length_(0) {
+          }
+          request_packet(const char* data,size_t len){
+               if( len <= (max_body_length+header_length)){
+                    memcpy(data_,data,len);
+                    data_[len]=0;
+                    decode_header();
+               }
           }
 
           const char* data() const
@@ -70,13 +76,14 @@ class request_packet
           {
                using namespace std; // For sprintf and memcpy.
                char header[header_length + 1] = "";
-               sprintf(header, "%4ld", body_length_);
+               sprintf(header, "%16ld", body_length_);
                memcpy(data_, header, header_length);
           }
 
      private:
-          char data_[header_length + max_body_length];
+          char data_[header_length + max_body_length+1];
           size_t body_length_;
 };
+typedef auto_ptr<request_packet> request_packet_ptr;
 
 #endif // REQUEST_PACKET_HPP

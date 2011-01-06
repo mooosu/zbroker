@@ -41,9 +41,11 @@ void broker::init(BSONObj *options)
           m_database = m_options.getStringField("database");
           m_collection = m_options.getStringField("collection");
 
-          m_limit = m_options.getIntField("limit");
-          m_skip = m_options.getIntField("skip");
-          m_queue_size = m_options.getIntField("queue_size");
+          BSONObj parameters = m_options.getObjectField("parameters");
+
+          m_limit = parameters.getIntField("limit");
+          m_skip = parameters.getIntField("skip");
+          m_queue_size = parameters.getIntField("queue_size");
 
           m_conditions = m_options.getObjectField("conditions");
           m_fields = m_options.getObjectField("fields");
@@ -78,12 +80,11 @@ void broker::open(BSONObj* options )
 {
      init(options);
      size_t buf_size = m_host.size() + 10;
-     char* buf =  new char[buf_size];
+     auto_ptr<char> buf(new char[buf_size]);
      string errmsg ;
 
-     sprintf(buf,"%s:%d",m_host.c_str(),m_port);
-     m_connection_string = buf;
-     delete buf;
+     sprintf(buf.get(),"%s:%d",m_host.c_str(),m_port);
+     m_connection_string = buf.get();
      if(!m_connection.connect(m_connection_string.c_str(),errmsg)){
           throw broker_exception(errmsg.c_str());
      }
@@ -121,7 +122,6 @@ vector<string>& broker::query(mongo_sort sort)
                query,m_limit,m_skip,&m_fields,queryOptions,batchSize);
      bool has_docs = cursor->more();
      m_json_doc_cache.clear();
-     m_last_doc_id.clear();
      while( cursor->more() ) {
           doc = cursor->next();
           m_json_doc_cache.push_back(doc.jsonString());
@@ -141,8 +141,8 @@ void broker::read(size_t seconds)
           vector<string> docs = query();
           if( docs.size() == 0 ){
                m_reach_end = true;
-               cout << "no more items, sleep(5)" << endl;
-               sleep(5);
+               cout << "no more items, sleep(3)" << endl;
+               sleep(3);
                continue;
           }
           for(size_t i = 0 ; !m_do_exit && i< docs.size() ; i++ ){

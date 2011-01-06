@@ -1,4 +1,6 @@
-#include "common.h"
+#ifndef _BROKER_HPP_
+#define _BROKER_HPP_
+#include <boost/thread/condition.hpp>
 namespace zbroker{
      using namespace std;
      using namespace mongo;
@@ -59,8 +61,11 @@ namespace zbroker{
                //   :port=> 27017,
                //   :database=> "zbot_development",
                //   :collection=> "analyse",
+               //   :parameters={
                //   :skip=> 100,
                //   :limit => 1000,  # 0 for no limit
+               //   :queue_size=>100,
+               //   }
                //   :conditions => {} ,# {'brand'=>'Nokia'}
                //   :fields => ['brand',...]
                // }
@@ -86,6 +91,18 @@ namespace zbroker{
                string pop(size_t seconds = 0){ 
                     check_status();
                     return m_queue.pop(seconds); 
+               }
+               size_t batch_pop( vector<string>&docs, size_t batch_size){
+                    BOOST_ASSERT(batch_size > 0 );
+                    try{
+                         for( int i = 0 ; i< batch_size ; i++ ){
+                              docs.push_back(pop(3));
+                         }
+                    } catch(broker_timeout &ex){
+                         cout << "batch_pop timeout(3s):" << docs.size() << endl;
+                         return ULONG_MAX;
+                    }
+                    return docs.size();
                }
                size_t push(string str  ){
                     check_status();
@@ -116,3 +133,4 @@ namespace zbroker{
                string& get_last_doc_id() { return m_last_doc_id; }
      };
 };
+#endif

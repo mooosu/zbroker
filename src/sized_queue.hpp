@@ -1,3 +1,6 @@
+#ifndef _SIZED_QUEUE_HPP_
+#define _SIZED_QUEUE_HPP_
+
 #include <queue>
 #include <boost/utility.hpp>
 #include <boost/thread/condition.hpp>
@@ -124,3 +127,4 @@ int main(int, char*[])
      return 0;
 }
 #endif
+#endif // _SIZED_QUEUE_HPP_

@@ -1,32 +1,34 @@
 #include "common.h"
 
 using namespace std;
-using namespace mongo;
 
-typedef struct{
-     const char* msg;
-     size_t size;
-}error_message;
-#define MAX_REQUEST_MESSAGE_SIZE  (1024*1024)
-#define ERROR_MESSAGE(x) {x,sizeof(x)-1}
-static error_message error_messages[]={
-     ERROR_MESSAGE( "Command not found"),
-     ERROR_MESSAGE( "Command unimplemented yet!"),
-     ERROR_MESSAGE( "Request body exceed limit(1MB)!"),
-     ERROR_MESSAGE( "No more items!"),
-     ERROR_MESSAGE( "Internal Error(invalid error code)")
-};
-void *read_queue_thread(void *arg)
+int main(int argc, char* argv[])
 {
-     processor *pro= (processor *) arg;
-     return (NULL);
-}
-void* update_queue_thread( void *arg )
-{
-     processor *pro= (processor *) arg;
-     return (NULL);
-}
-int main () {
-    return 0;
-}
+     try
+     {
+          if (argc < 2)
+          {
+               std::cerr << "Usage: asio_handler <port> [<port> ...]\n";
+               return 1;
+          }
 
+          asio::io_service io_service;
+
+          asio_handler_list servers;
+          for (int i = 1; i < argc; ++i)
+          {
+               using namespace std; // For atoi.
+               tcp::endpoint endpoint(tcp::v4(), atoi(argv[i]));
+               asio_handler_ptr server(new asio_handler(io_service, endpoint));
+               servers.push_back(server);
+          }
+
+          io_service.run();
+     }
+     catch (std::exception& e)
+     {
+          std::cerr << "Exception: " << e.what() << "\n";
+     }
+
+     return 0;
+}
