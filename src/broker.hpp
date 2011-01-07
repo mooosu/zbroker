@@ -11,6 +11,9 @@ namespace zbroker{
      class broker{
           private:
                boost::mutex m_rewind_mutex;
+               boost::mutex m_update_done_mutex;
+
+               boost::condition m_con_can_exit;
                size_t m_size;
                zbroker::sized_queue<string> m_queue;
 
@@ -80,6 +83,7 @@ namespace zbroker{
                void open(BSONObj* options =NULL );
                void read(size_t seconds = 0);
                void update();
+               void wait_update_done();
 
 
                void set_exit(){ m_do_exit = true; }

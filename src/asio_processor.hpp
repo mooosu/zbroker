@@ -80,6 +80,9 @@ class asio_processor{
                     request_packet reply ();
                }
           }
+          void wait_update_done() {
+               m_write_broker.wait_update_done();
+          }
           void term(){
                if( m_read_thread && m_read_broker.connected()){
                     m_read_broker.set_exit();
@@ -178,7 +181,14 @@ class asio_processor{
                     pack_response(*packet.get(),NoMoreItem,docs,"do_read no more items");
                }
           }
-          void do_write(request_packet_ptr& packet){
+          void do_write(request_packet_ptr&packet,BSONObj& update){
+               BSONObj obj = update.getObjectField("docs");
+               vector<BSONObj> docs ;
+               obj.Vals(docs);
+               for(int i=0; i< docs.size();i++){
+                    m_write_broker.push(docs[i].jsonString());
+               }
+               pack_response(*packet.get(),OK,"do_write");
           }
           string process( string& json  )
           {
@@ -205,7 +215,7 @@ class asio_processor{
                               break;
                          case WRITE:
                               BOOST_ASSERT(m_write_broker.connected());
-                              do_write(packet);
+                              do_write(packet,obj);
                               ret = string(packet->data(),packet->length());
                               break;
                          default:

@@ -16,11 +16,12 @@ struct asio_processor_test
      string m_json_read;
      string m_json_read_no_data;
      string m_json_write;
+     string m_json_open_write;
      asio_processor_test(){
           m_json_string = "{\"cmd\":100, \
                            \"body\":{\"host\":\"192.168.1.86\",\"port\":27017,\"database\":\"zbroker\", \
                            \"collection\":\"broker\",\"parameters\":{\"skip\":0,\"limit\":1000, \"queue_size\":100}, \
-                           \"conditions\":{\"brand\":\"Nokia\"}, \"fields\":{\"category\":1,\"brand\":1}, \
+                           \"conditions\":{\"brand\":\"Nokia\"}, \"fields\":{\"category\":1,\"brand\":1,\"status\":1}, \
                            \"upsert\":false,\"multi\":true,\"purpose\":1}}";
           m_json_open  = m_json_string;
           m_json_read = "{\"cmd\":101, \
@@ -39,10 +40,17 @@ struct asio_processor_test
                             \"collection\":\"broker\",\"parameters\":{\"skip\":0,\"limit\":1000, \"queue_size\":100}, \
                             \"conditions\":{\"brand\":\"Nokia\"},\"fields\":{\"category\":1,\"brand\":1}, \
                             \"upsert\":false,\"multi\":true,\"purpose\":1}}";
-          m_json_write = "{\"cmd\":102,\"body\":{\"purpose\":2}, \
+
+          m_json_open_write = "{\"cmd\":100, \
+                           \"body\":{\"host\":\"192.168.1.86\",\"port\":27017,\"database\":\"zbroker\", \
+                           \"collection\":\"broker\",\"parameters\":{\"skip\":0,\"limit\":1000, \"queue_size\":100}, \
+                           \"conditions\":{\"brand\":\"Nokia\"}, \"fields\":{\"category\":1,\"brand\":1}, \
+                           \"upsert\":false,\"multi\":true,\"purpose\":2}}";
+
+          m_json_write = "{\"cmd\":102,\"body\":{\"purpose\":2, \
                           \"docs\":[{\"query\":{\"id\":{\"$oid\":\"%s\"}}, \
-                          \"doc\":{\"brand\":\"updated\",\"status\":1234}, \
-                          \"upsert\":false,\"multi\":false}]}";
+                          \"doc\":{\"brand\":\"Nokia\",\"status\":\"%s\"}, \
+                          \"upsert\":false,\"multi\":false}]}}";
      }
 };
 
@@ -161,6 +169,8 @@ BOOST_AUTO_TEST_CASE(test_process_write)
 
      bool found = false;
      size_t count = 0;
+     vector<string> update_queries;
+     char tmp_buffer[1024];
      while( res.find("\"response\" : 503")==string::npos){
           request_packet packet(res.c_str(),res.size());
           BSONObj tmp = fromjson(packet.body());
@@ -170,13 +180,49 @@ BOOST_AUTO_TEST_CASE(test_process_write)
           count += tmp_docs.size();
           cout << "count:" << count <<endl;
           for( int i =0 ; i< tmp_docs.size() ; i++ ){
-               cout << "_id:" << tmp_docs[i] << endl;
+               tmp= fromjson(tmp_docs[i]);
+               BSONElement id;
+               cout << tmp_docs[i] << endl;
+               tmp.getObjectID(id);
+               sprintf(tmp_buffer,m_json_write.c_str(),id.OID().str().c_str(),id.OID().str().c_str());
+               update_queries.push_back(tmp_buffer);
           }
           res = pro.process(m_json_read);
      }
+
      BOOST_CHECK(res.find("\"response\" : 503")!=string::npos);
      BOOST_CHECK_EQUAL(count,888);
+     BOOST_CHECK_EQUAL(update_queries.size(),888);
      pro.term();
+
+     asio_processor pro_write(m_json_open_write.c_str());
+     cout << "before process " << endl;
+     try{
+          res = pro_write.process(m_json_open_write);
+          cout << "doc0:" << update_queries[0] << endl;
+          BSONObj o = fromjson(update_queries[0]);
+          cout << "docs type:" << o.getField("docs").type()<<endl;
+          for( int i =0 ; i< update_queries.size() ; i++ ){
+               res = pro_write.process(update_queries[i]);
+          }
+     } catch ( std::exception &ex){
+          cout << "msg:" << ex.what() << endl;
+     }
+     pro_write.wait_update_done();
+     pro_write.term();
+
+     obj = fromjson(m_json_open);
+     broker verify_write;
+     objBody = obj.getObjectField("body");
+     verify_write.open(&objBody);
+     vector<string> written_docs = verify_write.query();
+     BOOST_CHECK_EQUAL(written_docs.size() , 888);
+     for( int i =0 ; i< written_docs.size() ; i++ ){
+          BSONObj tmp= fromjson(written_docs[i]);
+          BSONElement id;
+          tmp.getObjectID(id);
+          BOOST_CHECK_EQUAL(tmp.getStringField("status"),id.OID().str());
+     }
 }
 BOOST_AUTO_TEST_SUITE_END();
 

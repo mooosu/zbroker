@@ -168,10 +168,14 @@ void broker::read(size_t seconds)
  */
 void broker::update()
 {
+     boost::mutex::scoped_lock lock(m_update_done_mutex);
+     string json;
      while(!m_do_exit){
-          string json =m_queue.pop();
-          if(json.size() == 4 && json.find("exit")!=string::npos){
-               cout << "get exit signal" << endl;
+          try{
+               json =m_queue.pop(3);
+          }catch (broker_timeout&ex){
+               cout << "broker::update broker_timeout(3s)" << ex.what() << endl;
+               m_con_can_exit.notify_all();
                break;
           }
           BSONObj obj =fromjson(json);
@@ -182,4 +186,8 @@ void broker::update()
           m_connection.update(m_docset,query,doc,upsert,multi);
           m_update_count ++;
      }
+}
+void broker::wait_update_done()
+{
+     m_con_can_exit.wait(m_update_done_mutex);
 }
