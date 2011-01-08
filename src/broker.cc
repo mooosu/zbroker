@@ -28,6 +28,7 @@ void broker::reset()
      m_query_doc_count = 0;
      m_query_count = 0;
      m_update_count = 0;
+     m_has_fields = false;
      m_queue.set_size(m_queue_size);
 }
 void broker::init(BSONObj *options)
@@ -49,6 +50,7 @@ void broker::init(BSONObj *options)
 
           m_conditions = m_options.getObjectField("conditions");
           m_fields = m_options.getObjectField("fields");
+          m_has_fields = m_fields.isEmpty() == false;
 
           if( m_host.empty() ){
                throw broker_argument_error("host must not be empty");
@@ -104,6 +106,7 @@ vector<string>& broker::query(mongo_sort sort)
      BSONObj doc;
      BSONObjBuilder builder;
      BSONObj new_conditions;
+     BSONObj *fields=NULL;
      int queryOptions = 0 ;
      int batchSize = 0;
 
@@ -118,8 +121,9 @@ vector<string>& broker::query(mongo_sort sort)
      }
      Query query= Query(new_conditions);
      query.sort("_id",(int)sort);
+     if( m_has_fields) fields = &m_fields;
      auto_ptr<DBClientCursor> cursor = m_connection.query(m_docset, 
-               query,m_limit,m_skip,&m_fields,queryOptions,batchSize);
+               query,m_limit,m_skip,fields,queryOptions,batchSize);
      bool has_docs = cursor->more();
      m_json_doc_cache.clear();
      while( cursor->more() ) {
@@ -174,7 +178,7 @@ void broker::update()
           try{
                json =m_queue.pop(3);
           }catch (broker_timeout&ex){
-               cout << "broker::update broker_timeout(3s)" << ex.what() << endl;
+               cout << "broker::update broker_timeout(3s):" << ex.what() << endl;
                m_con_can_exit.notify_all();
                break;
           }
@@ -183,6 +187,7 @@ void broker::update()
           BSONObj doc = obj.getObjectField("doc");
           bool upsert = obj.getBoolField("upsert");
           bool multi = obj.getBoolField("multi");
+
           m_connection.update(m_docset,query,doc,upsert,multi);
           m_update_count ++;
      }

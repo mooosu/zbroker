@@ -8,8 +8,6 @@ using namespace std;
 using namespace zbroker;
 using namespace mongo;
 
-typedef google::sparse_hash_map<string,string , boost::hash<string> > processor_hash_t;
-typedef processor_hash_t::value_type processor_item_t;
 // test fields
 BOOST_AUTO_TEST_CASE(test_hash)
 {

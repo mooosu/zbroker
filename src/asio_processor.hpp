@@ -49,9 +49,9 @@ class asio_processor{
           broker m_write_broker;
           char*  m_response_buf;
           size_t m_response_buf_size;
-          string m_raw_request;
           pthread_t m_read_thread;
           pthread_t m_write_thread;
+          size_t m_processor_id;
 
           static void* write_thread( void *arg )
           {
@@ -66,18 +66,18 @@ class asio_processor{
                return (NULL);
           }
      public:
-          asio_processor(const char* request){
+          asio_processor(size_t processor_id){
                m_response_buf = NULL;
                m_response_buf_size = 0;
-               m_raw_request = request;
                m_read_thread = NULL;
                m_write_thread = NULL;
+               BOOST_ASSERT(processor_id > 0 );
+               m_processor_id = processor_id;
           }
           void send_error( Response error ){
                if(error < ErrorMax && error> MinError ){
                     int err_no = error - MinError;
                     error_message* msg = &error_messages[err_no];
-                    request_packet reply ();
                }
           }
           void wait_update_done() {
@@ -98,12 +98,8 @@ class asio_processor{
                     pthread_join(m_write_thread,NULL);
                }
           }
-          Response parse_request(BSONObj &bodyObj,Command &cmd,const char* json)
+          Response parse_request(BSONObj &bodyObj,Command &cmd,string& json)
           {
-               if( m_raw_request.size() > MAX_REQUEST_MESSAGE_SIZE ){
-                    return RequestTooLong;
-               }
-
                BSONObj cmdObj=fromjson(json);
                cmd = (Command)cmdObj.getIntField("cmd");
                if( cmd <= MaxCmd && cmd >= MinCmd ){
@@ -113,45 +109,41 @@ class asio_processor{
                     return UnknownCommand;
                }
           }
-          Response parse_request(BSONObj &bodyObj,Command &cmd)
+          void init_response_builder(BSONObjBuilder&builder,Response res,BSONObj* dataToReturn,const char* extra="")
           {
-               return parse_request(bodyObj,cmd,m_raw_request.c_str());
-          }
-          size_t pack_response(request_packet& packet,Response res,const char* extra="" ){
-
-               BSONObjBuilder docs_builder;
-               docs_builder.append("response",(int)res);
+               builder.append("response",(int)res);
                if(extra && extra[0] !=0 ){
-                    docs_builder.append("extra",extra);
+                    builder.append("extra",extra);
                }
-               string json =docs_builder.obj().jsonString(); 
-
-               memcpy(packet.body(),json.c_str(),json.size());
-               packet.body_length(json.size());
-               packet.encode_header();
-               return packet.length();
+               if( dataToReturn && !dataToReturn->isEmpty())
+                    builder.appendElements(*dataToReturn);
           }
-          size_t pack_response(request_packet& packet ,Response res , vector<string>& docs,const char* extra=""){
-               BSONObjBuilder docs_builder;
-               docs_builder.append("response",(int)res);
-               if( docs.size() > 0 && res == OK ){
-                    docs_builder.append<string>("docs",docs);
-               }
-
-               if(extra && extra[0] !=0 ){
-                    docs_builder.append("extra",extra);
-               }
-
-               string json =docs_builder.obj().jsonString(); 
-               if( json.size() > request_packet::max_body_length){
+          string& get_response_string(out_packet& packet ,BSONObjBuilder& builder)
+          {
+               string json =builder.obj().jsonString(); 
+               if( json.size() > packet_header::max_body_length){
                     json = BSONObjBuilder().append("response",(int)ResponseToLong).obj().jsonString();
                     cout << "ResponseToLong" << endl;
                }
+               packet.set_request_id("xxxx");
+               packet.set_body(json);
+               return packet.pack();
+          }
+          string& pack_response(out_packet& packet,Response res,const char* extra="" ,BSONObj* dataToReturn=NULL)
+          {
+               BSONObjBuilder builder;
+               init_response_builder(builder,res,dataToReturn,extra);
+               return get_response_string(packet,builder);
+          }
+          string& pack_response(out_packet& packet ,Response res , vector<string>& docs,const char* extra="")
+          {
+               BSONObjBuilder docs_builder;
+               init_response_builder(docs_builder,res,NULL,extra);
+               if( docs.size() > 0 && res == OK ){
+                    docs_builder.append<string>("docs",docs);
+               }
+               return get_response_string(packet,docs_builder);
 
-               memcpy(packet.body(),json.c_str(),json.size());
-               packet.body_length(json.size());
-               packet.encode_header();
-               return packet.length();
           }
           void setup_broker( Purpose p ,BSONObj& obj ){
                switch(p){
@@ -173,50 +165,44 @@ class asio_processor{
                          break;
                }
           }
-          void do_read(request_packet_ptr&packet){
+          string& do_read(out_packet_ptr&packet){
                vector<string> docs;
+               string ret;
                if( ULONG_MAX != m_read_broker.batch_pop(docs,m_read_broker.get_queue_size()) || docs.size() > 0){
-                    pack_response(*packet.get(),OK,docs,"do_read");
+                    return pack_response(*packet.get(),OK,docs,"do_read");
                } else {
-                    pack_response(*packet.get(),NoMoreItem,docs,"do_read no more items");
+                    return pack_response(*packet.get(),NoMoreItem,docs,"do_read no more items");
                }
           }
-          void do_write(request_packet_ptr&packet,BSONObj& update){
+          string& do_write(out_packet_ptr&packet,BSONObj& update){
                BSONObj obj = update.getObjectField("docs");
                vector<BSONObj> docs ;
                obj.Vals(docs);
                for(int i=0; i< docs.size();i++){
                     m_write_broker.push(docs[i].jsonString());
                }
-               pack_response(*packet.get(),OK,"do_write");
+               return pack_response(*packet.get(),OK,"do_write");
           }
-          string process( string& json  )
-          {
-               return process(json.c_str());
-          }
-          string process( const char* json  )
+          string process( string& json)
           {
                BSONObj obj;
                Command cmd;
                Response res = parse_request(obj,cmd,json);
                string ret ;
-               request_packet_ptr packet(new request_packet());
+               out_packet_ptr packet(new out_packet());
                if( res == OK ){
                     switch( cmd ){
                          case OPEN:
                               setup_broker((Purpose)obj.getIntField("purpose"),obj);
-                              pack_response(*packet.get(),OK,"Open Action");
-                              ret = string(packet->data(),packet->length());
+                              ret = pack_response(*packet.get(),OK,"Open Action");
                               break;
                          case READ:
                               BOOST_ASSERT(m_read_broker.connected());
-                              do_read(packet);
-                              ret = string(packet->data(),packet->length());
+                              ret = do_read(packet);
                               break;
                          case WRITE:
                               BOOST_ASSERT(m_write_broker.connected());
-                              do_write(packet,obj);
-                              ret = string(packet->data(),packet->length());
+                              ret = do_write(packet,obj);
                               break;
                          default:
                               throw "UnknownCommand";
@@ -229,4 +215,5 @@ class asio_processor{
           }
 };
 typedef asio_processor processor;
+typedef shared_ptr<processor> processor_ptr;
 #endif

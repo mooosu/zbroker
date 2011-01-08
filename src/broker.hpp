@@ -45,6 +45,7 @@ namespace zbroker{
                bool    m_inited;
                bool    m_connected;
                bool    m_reach_end;
+               bool    m_has_fields;
                // stats
                size_t m_query_doc_count;
                size_t m_query_count;

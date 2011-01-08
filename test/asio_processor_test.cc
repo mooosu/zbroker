@@ -44,11 +44,11 @@ struct asio_processor_test
           m_json_open_write = "{\"cmd\":100, \
                            \"body\":{\"host\":\"192.168.1.86\",\"port\":27017,\"database\":\"zbroker\", \
                            \"collection\":\"broker\",\"parameters\":{\"skip\":0,\"limit\":1000, \"queue_size\":100}, \
-                           \"conditions\":{\"brand\":\"Nokia\"}, \"fields\":{\"category\":1,\"brand\":1}, \
+                           \"conditions\":{\"brand\":\"Nokia\"}, \"fields\":{\"category\":1,\"brand\":1,\"status\":1}, \
                            \"upsert\":false,\"multi\":true,\"purpose\":2}}";
 
           m_json_write = "{\"cmd\":102,\"body\":{\"purpose\":2, \
-                          \"docs\":[{\"query\":{\"id\":{\"$oid\":\"%s\"}}, \
+                          \"docs\":[{\"query\":{\"_id\":{\"$oid\":\"%s\"}}, \
                           \"doc\":{\"brand\":\"Nokia\",\"status\":\"%s\"}, \
                           \"upsert\":false,\"multi\":false}]}}";
      }
@@ -62,8 +62,8 @@ BOOST_AUTO_TEST_CASE(test_parse_request)
      BSONObj obj;
      Command cmd=ErrorCmd;
 
-     asio_processor pro(m_json_string.c_str());
-     BOOST_CHECK_EQUAL(pro.parse_request(obj,cmd),OK);
+     asio_processor pro(1);
+     BOOST_CHECK_EQUAL(pro.parse_request(obj,cmd,m_json_string),OK);
 
 
      BOOST_CHECK_EQUAL(obj.getIntField("port"),27017);
@@ -74,19 +74,20 @@ BOOST_AUTO_TEST_CASE(test_parse_request)
           docs.push_back(m_json_string);
      }
 
-     request_packet packet;
+     out_packet packet;
      pro.pack_response(packet,OK,docs);
-     asio_processor pro2(m_json_string2.c_str());
-     BOOST_CHECK_EQUAL(pro2.parse_request(obj,cmd),UnknownCommand);
+     asio_processor pro2(2);
+     BOOST_CHECK_EQUAL(pro2.parse_request(obj,cmd,m_json_string2),UnknownCommand);
 }
 BOOST_AUTO_TEST_CASE(test_pack_response)
 {
-     request_packet packet;
+     out_packet packet;
      memset(&packet,0,sizeof(packet));
-     asio_processor pro(m_json_string.c_str());
+     asio_processor pro(1);
      pro.pack_response(packet,OK );
+     cout << "pack data:" << packet.data() << endl;
      BOOST_CHECK(string(packet.data()).find("\"response\" : 200")!=string::npos);
-     BOOST_CHECK_EQUAL(pro.pack_response(packet,UnknownCommand),36);
+     BOOST_CHECK_EQUAL(pro.pack_response(packet,UnknownCommand).size(),40);
      BOOST_CHECK(string(packet.data()).find("\"response\" : 500")!=string::npos);
 }
 BOOST_AUTO_TEST_CASE(test_process_read)
@@ -107,22 +108,21 @@ BOOST_AUTO_TEST_CASE(test_process_read)
      }
      BOOST_CHECK_EQUAL( test_bk.query().size() , 888);
 
-     asio_processor pro_no_data(m_json_read_no_data.c_str());
+     asio_processor pro_no_data(1);
      string res = pro_no_data.process(m_json_open);
      BOOST_CHECK(string(res).find("\"response\" : 503")==string::npos);
      pro_no_data.term();
 
-     asio_processor pro(m_json_read.c_str());
+     asio_processor pro(1);
      res = pro.process(m_json_open);
      res = pro.process(m_json_read);
 
-     request_packet packet(res.c_str(),res.size());
      BOOST_CHECK(res.find("\"response\" : 200")!=string::npos);
 
      bool found = false;
      size_t count = 0;
      while( res.find("\"response\" : 503")==string::npos){
-          request_packet packet(res.c_str(),res.size());
+          in_packet packet(res.c_str(),res.size());
           BSONObj tmp = fromjson(packet.body());
           BSONElement e = tmp.getField("docs");
           BOOST_CHECK_EQUAL(e.type(),Array);
@@ -155,16 +155,16 @@ BOOST_AUTO_TEST_CASE(test_process_write)
           test_bk.get_connection().insert(test_bk.get_docset(),fromjson(buffer));
      }
 
-     asio_processor pro_no_data(m_json_read_no_data.c_str());
+     asio_processor pro_no_data(1);
      string res = pro_no_data.process(m_json_open);
      BOOST_CHECK(string(res).find("\"response\" : 503")==string::npos);
      pro_no_data.term();
 
-     asio_processor pro(m_json_read.c_str());
+     asio_processor pro(2);
      res = pro.process(m_json_open);
      res = pro.process(m_json_read);
 
-     request_packet packet(res.c_str(),res.size());
+     in_packet packet(res.c_str(),res.size());
      BOOST_CHECK(res.find("\"response\" : 200")!=string::npos);
 
      bool found = false;
@@ -172,7 +172,7 @@ BOOST_AUTO_TEST_CASE(test_process_write)
      vector<string> update_queries;
      char tmp_buffer[1024];
      while( res.find("\"response\" : 503")==string::npos){
-          request_packet packet(res.c_str(),res.size());
+          in_packet packet(res.c_str(),res.size());
           BSONObj tmp = fromjson(packet.body());
           BSONObj arr = tmp.getObjectField("docs");
           vector<string> tmp_docs;
@@ -182,7 +182,6 @@ BOOST_AUTO_TEST_CASE(test_process_write)
           for( int i =0 ; i< tmp_docs.size() ; i++ ){
                tmp= fromjson(tmp_docs[i]);
                BSONElement id;
-               cout << tmp_docs[i] << endl;
                tmp.getObjectID(id);
                sprintf(tmp_buffer,m_json_write.c_str(),id.OID().str().c_str(),id.OID().str().c_str());
                update_queries.push_back(tmp_buffer);
@@ -195,13 +194,10 @@ BOOST_AUTO_TEST_CASE(test_process_write)
      BOOST_CHECK_EQUAL(update_queries.size(),888);
      pro.term();
 
-     asio_processor pro_write(m_json_open_write.c_str());
-     cout << "before process " << endl;
+     asio_processor pro_write(1);
      try{
           res = pro_write.process(m_json_open_write);
-          cout << "doc0:" << update_queries[0] << endl;
           BSONObj o = fromjson(update_queries[0]);
-          cout << "docs type:" << o.getField("docs").type()<<endl;
           for( int i =0 ; i< update_queries.size() ; i++ ){
                res = pro_write.process(update_queries[i]);
           }

@@ -259,8 +259,7 @@ BOOST_AUTO_TEST_CASE(test_update)
      while(bk_update.size() != 0 );
      sleep(1);
      BOOST_CHECK_EQUAL(bk_update.get_update_count(),strs.size());
-     bk_update.set_exit();
-     bk_update.push("exit");
+     bk_update.wait_update_done();
      sleep(2);
 }
 BOOST_AUTO_TEST_SUITE_END();

@@ -3,27 +3,31 @@
 
 void connection::start()
 {
+     packet_header &header = m_in.get_header();
      asio::async_read(m_socket,
-               asio::buffer(m_read_msg.data(), request_packet::header_length),
+               asio::buffer(header.buffer(), header.length()),
                boost::bind( &connection::handle_read_header, shared_from_this(),
                     asio::placeholders::error));
 }
 
-void connection::deliver(const request_packet& msg)
+void connection::deliver(out_packet& packet)
 {
-     asio::async_write(m_socket, asio::buffer(msg.data(), msg.length()),
+     asio::async_write(m_socket, asio::buffer(packet.pack().c_str(), packet.length()),
                boost::bind(&connection::handle_write, shared_from_this(),
                     asio::placeholders::error));
 }
 void connection::handle_read_header(const system::error_code& error)
 {
-     if (!error && m_read_msg.decode_header())
+     if (!error )
      {
-          asio::async_read(m_socket, asio::buffer(m_read_msg.body(), m_read_msg.body_length()),
+          // will throw ex if exceed limit
+          size_t body_len = m_in.get_header().decode();
+          asio::async_read(m_socket, 
+                    asio::buffer(m_in.reserve(body_len), body_len),
                     boost::bind(&connection::handle_read_body, shared_from_this(),
                          asio::placeholders::error));
      } else {
-          throw error;
+          cout << "handle_read_body"  << error.message() << endl;
      }
 }
 
@@ -31,10 +35,11 @@ void connection::handle_read_body(const system::error_code& error)
 {
      if (!error) {
           using namespace std;
-          cout << "length: " << m_read_msg.length() <<",str: |" << m_read_msg.data() << "|" << endl;
-          deliver(m_read_msg);
+          cout << "length: " << m_in.length() <<",str: |" << m_in.body() << "|" << endl;
+          deliver(m_out);
+          packet_header &header = m_in.get_header();
           asio::async_read(m_socket,
-                    asio::buffer(m_read_msg.data(), request_packet::header_length),
+                    asio::buffer(header.buffer(), header.length()),
                     boost::bind(&connection::handle_read_header, shared_from_this(),
                          asio::placeholders::error));
      } else {
@@ -58,7 +63,7 @@ void asio_handler::handle_accept(connection_ptr pro, const error_code& error)
      if (!error)
      {
           pro->start();
-          connection_ptr new_connection(new connection(m_io_service));
+          connection_ptr new_connection = make_connection();
           m_acceptor.async_accept(new_connection->socket(),
                     boost::bind(&asio_handler::handle_accept, this, new_connection,
                          asio::placeholders::error));
