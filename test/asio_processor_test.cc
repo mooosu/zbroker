@@ -62,7 +62,7 @@ BOOST_AUTO_TEST_CASE(test_parse_request)
      BSONObj obj;
      Command cmd=ErrorCmd;
 
-     asio_processor pro(1);
+     asio_processor pro("xxx");
      BOOST_CHECK_EQUAL(pro.parse_request(obj,cmd,m_json_string),OK);
 
 
@@ -76,18 +76,19 @@ BOOST_AUTO_TEST_CASE(test_parse_request)
 
      out_packet packet;
      pro.pack_response(packet,OK,docs);
-     asio_processor pro2(2);
+     asio_processor pro2("xxx");
      BOOST_CHECK_EQUAL(pro2.parse_request(obj,cmd,m_json_string2),UnknownCommand);
 }
 BOOST_AUTO_TEST_CASE(test_pack_response)
 {
      out_packet packet;
-     memset(&packet,0,sizeof(packet));
-     asio_processor pro(1);
+     asio_processor pro("xxx");
+
      pro.pack_response(packet,OK );
-     cout << "pack data:" << packet.data() << endl;
      BOOST_CHECK(string(packet.data()).find("\"response\" : 200")!=string::npos);
-     BOOST_CHECK_EQUAL(pro.pack_response(packet,UnknownCommand).size(),40);
+
+     pro.pack_response(packet,UnknownCommand);
+     BOOST_CHECK_EQUAL(packet.length(),40);
      BOOST_CHECK(string(packet.data()).find("\"response\" : 500")!=string::npos);
 }
 BOOST_AUTO_TEST_CASE(test_process_read)
@@ -108,12 +109,12 @@ BOOST_AUTO_TEST_CASE(test_process_read)
      }
      BOOST_CHECK_EQUAL( test_bk.query().size() , 888);
 
-     asio_processor pro_no_data(1);
+     asio_processor pro_no_data("xxx");
      string res = pro_no_data.process(m_json_open);
      BOOST_CHECK(string(res).find("\"response\" : 503")==string::npos);
      pro_no_data.term();
 
-     asio_processor pro(1);
+     asio_processor pro("xxx");
      res = pro.process(m_json_open);
      res = pro.process(m_json_read);
 
@@ -155,12 +156,12 @@ BOOST_AUTO_TEST_CASE(test_process_write)
           test_bk.get_connection().insert(test_bk.get_docset(),fromjson(buffer));
      }
 
-     asio_processor pro_no_data(1);
+     asio_processor pro_no_data("xxx");
      string res = pro_no_data.process(m_json_open);
      BOOST_CHECK(string(res).find("\"response\" : 503")==string::npos);
      pro_no_data.term();
 
-     asio_processor pro(2);
+     asio_processor pro("xxx");
      res = pro.process(m_json_open);
      res = pro.process(m_json_read);
 
@@ -194,7 +195,7 @@ BOOST_AUTO_TEST_CASE(test_process_write)
      BOOST_CHECK_EQUAL(update_queries.size(),888);
      pro.term();
 
-     asio_processor pro_write(1);
+     asio_processor pro_write("xxx");
      try{
           res = pro_write.process(m_json_open_write);
           BSONObj o = fromjson(update_queries[0]);

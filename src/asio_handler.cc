@@ -10,9 +10,17 @@ void connection::start()
                     asio::placeholders::error));
 }
 
-void connection::deliver(out_packet& packet)
+void connection::process(in_packet& packet)
 {
-     asio::async_write(m_socket, asio::buffer(packet.pack().c_str(), packet.length()),
+
+     using namespace std;
+     BSONObj obj;
+     Command cmd;
+     Response res =processor::parse_request(obj,cmd,packet.body());
+     string hash = broker::hash(obj);
+     processor *pro = m_handler->get_processors().find(hash);
+     string ret =pro->process(res,cmd,obj);
+     asio::async_write(m_socket, asio::buffer(ret.c_str(), ret.size()),
                boost::bind(&connection::handle_write, shared_from_this(),
                     asio::placeholders::error));
 }
@@ -34,9 +42,7 @@ void connection::handle_read_header(const system::error_code& error)
 void connection::handle_read_body(const system::error_code& error)
 {
      if (!error) {
-          using namespace std;
-          cout << "length: " << m_in.length() <<",str: |" << m_in.body() << "|" << endl;
-          deliver(m_out);
+          process(m_in);
           packet_header &header = m_in.get_header();
           asio::async_read(m_socket,
                     asio::buffer(header.buffer(), header.length()),

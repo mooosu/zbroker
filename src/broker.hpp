@@ -8,7 +8,7 @@ namespace zbroker{
           Asc = 1,
           Desc = -1
      };
-     class broker{
+     class broker: noncopyable{
           private:
                boost::mutex m_rewind_mutex;
                boost::mutex m_update_done_mutex;
@@ -136,6 +136,7 @@ namespace zbroker{
                size_t  get_query_count() { return m_query_count; }
                size_t  get_update_count() { return m_update_count; }
                string& get_last_doc_id() { return m_last_doc_id; }
+               static string hash(BSONObj &obj);
      };
 };
 #endif

@@ -31,6 +31,10 @@ void broker::reset()
      m_has_fields = false;
      m_queue.set_size(m_queue_size);
 }
+string broker::hash(BSONObj& obj){
+     return obj.md5();
+}
+
 void broker::init(BSONObj *options)
 {
      if(!m_inited){

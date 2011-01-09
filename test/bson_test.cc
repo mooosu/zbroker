@@ -10,6 +10,9 @@ BOOST_AUTO_TEST_CASE(test_fields)
      BSONObjBuilder builder;
      BSONObj new_conditions;
      BSONObj conditions = fromjson("{\"conditions\":{\"brand\":\"Nokia\"}}");
+     BSONObj conditions2 = fromjson("{\"conditions\":{\"brand\":\"Nokia\"}}");
+     cout << "conditions md5: " << conditions.md5() << endl;
+     cout << "conditions2 md5: " << conditions2.md5() << endl;
      new_conditions = builder.appendElements(conditions).append("_id",BSONObjBuilder().append("$gt",string("4d22afbfe401195ff7785332")).obj()).obj();
 }
 BOOST_AUTO_TEST_CASE(test_oid)

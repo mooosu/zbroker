@@ -43,7 +43,7 @@ typedef enum {
      OK             = 200,
 }Response;
 
-class asio_processor{
+class asio_processor:noncopyable{
      private:
           broker m_read_broker;
           broker m_write_broker;
@@ -51,7 +51,7 @@ class asio_processor{
           size_t m_response_buf_size;
           pthread_t m_read_thread;
           pthread_t m_write_thread;
-          size_t m_processor_id;
+          string m_processor_id;
 
           static void* write_thread( void *arg )
           {
@@ -65,15 +65,26 @@ class asio_processor{
                b->read();
                return (NULL);
           }
-     public:
-          asio_processor(size_t processor_id){
+     protected:
+          void reset(string& processor_id ){
                m_response_buf = NULL;
                m_response_buf_size = 0;
                m_read_thread = NULL;
                m_write_thread = NULL;
-               BOOST_ASSERT(processor_id > 0 );
+               BOOST_ASSERT(processor_id.size() > 0 );
                m_processor_id = processor_id;
           }
+     public:
+          asio_processor(string& processor_id){
+               reset(processor_id);
+          }
+
+          asio_processor(const char* processor_id){
+               string tmp = processor_id;
+               reset(tmp);
+          }
+
+          string& id(){return m_processor_id;}
           void send_error( Response error ){
                if(error < ErrorMax && error> MinError ){
                     int err_no = error - MinError;
@@ -98,7 +109,7 @@ class asio_processor{
                     pthread_join(m_write_thread,NULL);
                }
           }
-          Response parse_request(BSONObj &bodyObj,Command &cmd,string& json)
+          static Response parse_request(BSONObj &bodyObj,Command &cmd,const char* json)
           {
                BSONObj cmdObj=fromjson(json);
                cmd = (Command)cmdObj.getIntField("cmd");
@@ -108,6 +119,10 @@ class asio_processor{
                } else {
                     return UnknownCommand;
                }
+          }
+          static Response parse_request(BSONObj &bodyObj,Command &cmd,string& json)
+          {
+               return parse_request(bodyObj,cmd,json.c_str());
           }
           void init_response_builder(BSONObjBuilder&builder,Response res,BSONObj* dataToReturn,const char* extra="")
           {
@@ -125,7 +140,7 @@ class asio_processor{
                     json = BSONObjBuilder().append("response",(int)ResponseToLong).obj().jsonString();
                     cout << "ResponseToLong" << endl;
                }
-               packet.set_request_id("xxxx");
+               packet.set_packet_id("xxxx");
                packet.set_body(json);
                return packet.pack();
           }
@@ -183,11 +198,7 @@ class asio_processor{
                }
                return pack_response(*packet.get(),OK,"do_write");
           }
-          string process( string& json)
-          {
-               BSONObj obj;
-               Command cmd;
-               Response res = parse_request(obj,cmd,json);
+          string process( Response res, Command cmd , BSONObj& obj ){
                string ret ;
                out_packet_ptr packet(new out_packet());
                if( res == OK ){
@@ -213,7 +224,13 @@ class asio_processor{
                }
                return ret;
           }
+          string process( string& json)
+          {
+               BSONObj obj;
+               Command cmd;
+               Response res = parse_request(obj,cmd,json);
+               return process( res,cmd,obj);
+          }
 };
 typedef asio_processor processor;
-typedef shared_ptr<processor> processor_ptr;
 #endif
