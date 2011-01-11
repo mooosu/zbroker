@@ -29,11 +29,10 @@ class connection: public boost::enable_shared_from_this<connection>{
           asio_handler *m_handler;
           processor* m_processor;
           bool   m_processor_opened;
-          bool   m_errored;
           
      public:
           connection(asio::io_service& io_service,asio_handler* handler):
-               m_socket(io_service), m_handler(handler), m_processor(NULL), m_processor_opened(false),m_errored(false){}
+               m_socket(io_service), m_handler(handler), m_processor(NULL), m_processor_opened(false){}
 
           tcp::socket& socket() { return m_socket; }
 

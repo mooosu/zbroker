@@ -1,4 +1,5 @@
 #include "common.h"
+using std::cout;
 
 
 void connection::start()
@@ -12,8 +13,6 @@ void connection::start()
 
 void connection::process(in_packet& packet)
 {
-     if ( m_errored ) return ;
-     using namespace std;
      BSONObj obj;
      Command cmd;
      string ret;
@@ -92,8 +91,6 @@ void connection::handle_write(const system::error_code& error)
      } else {
 
           LOG(ERROR)<< "connection::handle_write: "  << error.message() << endl;
-
-          m_errored = true;
           system::error_code ignored_ec;
           m_socket.shutdown(tcp::socket::shutdown_both, ignored_ec);
      }
