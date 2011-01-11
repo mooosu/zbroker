@@ -6,6 +6,7 @@ int main(int argc, char* argv[])
 {
      try
      {
+          google::InitGoogleLogging(argv[0]);
           if (argc < 2)
           {
                std::cerr << "Usage: asio_handler <port> [<port> ...]\n";

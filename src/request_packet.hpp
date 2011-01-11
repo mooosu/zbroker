@@ -1,14 +1,16 @@
 #ifndef REQUEST_PACKET_HPP
 #define REQUEST_PACKET_HPP
 
+#include <glog/logging.h>
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
+
 using namespace std; // For strncat and atoi.
 
 class packet_header{
      public:
-          enum { packet_id_length = 4 };
+          enum { packet_id_length = 32 };
           enum { header_length = 16 };
           enum { max_body_length = 1024*1024};
      private:
@@ -128,12 +130,17 @@ class out_packet{
           string& pack()
           {
                using namespace std; // For sprintf and memcpy.
-               char header[packet_header::header_length + 1] = "";
-               size_t total_size = m_body.size()+m_packet_id.size();
-               sprintf(header, "%16ld",total_size );
-               string tmp = header;
+               char buffer[256];
+               size_t total_size = m_body.size()+packet_header::packet_id_length;
+
+               sprintf(buffer, "%16ld",total_size );
+               string tmp = buffer;
+
+               sprintf(buffer, "%32s",m_packet_id.c_str() );
+               m_packet_id = buffer;
+
                m_data.clear();
-               m_data += header;
+               m_data += tmp;
                m_data += m_packet_id;
                m_data += m_body;
                return m_data;

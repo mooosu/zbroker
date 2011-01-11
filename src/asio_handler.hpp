@@ -7,6 +7,7 @@
 #include <boost/asio.hpp>
 #include <boost/functional/hash.hpp>
 #include <google/sparse_hash_map>
+#include <glog/logging.h>
 #include "asio_processor.hpp"
 
 typedef google::sparse_hash_map<string,processor*, boost::hash<string> > processor_hash_t;
@@ -26,10 +27,13 @@ class connection: public boost::enable_shared_from_this<connection>{
           in_packet m_in;
           out_packet m_out;
           asio_handler *m_handler;
+          processor* m_processor;
+          bool   m_processor_opened;
+          bool   m_errored;
           
      public:
           connection(asio::io_service& io_service,asio_handler* handler):
-               m_socket(io_service), m_handler(handler) { } 
+               m_socket(io_service), m_handler(handler), m_processor(NULL), m_processor_opened(false),m_errored(false){}
 
           tcp::socket& socket() { return m_socket; }
 
@@ -60,8 +64,12 @@ class processors{
                lock lk(m_hash_mutex);
                ret = m_processors[processor_id];
                if( ret == NULL ){
+                    m_processor_count ++;
                     ret = new processor(processor_id);
                     m_processors[ret->id()] = ret;
+                    LOG(INFO) << "processors count: " << m_processor_count << endl;
+               } else {
+                    LOG(INFO) << "processors find "  << (void*)ret << endl;
                }
                return ret;
           }
@@ -79,6 +87,8 @@ class asio_handler
                }
           void handle_accept(connection_ptr pro, const error_code& error);
           connection_ptr make_connection(){
+               m_connection_count ++;
+               LOG(INFO) << "connections: " << m_connection_count << endl;
                connection_ptr new_connection(new connection(m_io_service,this));
                return new_connection;
           }
@@ -87,6 +97,7 @@ class asio_handler
           asio::io_service& m_io_service;
           tcp::acceptor m_acceptor;
           processors m_processors;
+          size_t     m_connection_count;
 
 };
 

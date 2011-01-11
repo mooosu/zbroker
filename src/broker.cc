@@ -1,4 +1,7 @@
 #include "common.h"
+#include "broker.hpp"
+#include "boost/interprocess/exceptions.hpp"
+#define NO_LOG 1
 using namespace zbroker;
 using namespace boost;
 broker::broker()
@@ -29,7 +32,7 @@ void broker::reset()
      m_query_count = 0;
      m_update_count = 0;
      m_has_fields = false;
-     m_queue.set_size(m_queue_size);
+     m_last_doc_id.clear();
 }
 string broker::hash(BSONObj& obj){
      return obj.md5();
@@ -78,6 +81,7 @@ void broker::init(BSONObj *options)
                m_queue_size = 100;
           }
           m_docset = m_database + "." + m_collection;
+          m_queue.clear();
           m_queue.set_size(m_queue_size );
           m_inited = true;
      }
@@ -99,6 +103,7 @@ void broker::open(BSONObj* options )
 void broker::check_status()
 {
      if( !m_inited ){
+          LOG(ERROR) << "broker::check_status: " << "broker not inited" << endl;
           throw broker_not_inited("broker not inited");
      }
      if( !m_connected ){
@@ -149,7 +154,7 @@ void broker::read(size_t seconds)
           vector<string> docs = query();
           if( docs.size() == 0 ){
                m_reach_end = true;
-               cout << "no more items, sleep(3)" << endl;
+               LOG_IF(INFO,NO_LOG == 0) << "broker::read no more items, sleep(3)" << endl;
                sleep(3);
                continue;
           }
@@ -158,7 +163,6 @@ void broker::read(size_t seconds)
                     m_queue.push(docs[i],seconds);
                }catch( broker_timeout ex ){
                     if( m_do_exit ){
-                         cout << "get exiting" << endl;
                          break;
                     } else{
                          i--;
@@ -182,7 +186,7 @@ void broker::update()
           try{
                json =m_queue.pop(3);
           }catch (broker_timeout&ex){
-               cout << "broker::update broker_timeout(3s):" << ex.what() << endl;
+               LOG(INFO) << "broker::update broker timeout(3s):" << ex.what() << endl;
                m_con_can_exit.notify_all();
                break;
           }
@@ -198,5 +202,9 @@ void broker::update()
 }
 void broker::wait_update_done()
 {
-     m_con_can_exit.wait(m_update_done_mutex);
+     try{
+          boost::mutex::scoped_lock lock(m_update_done_mutex);
+     }catch(boost::interprocess::lock_exception e ){
+          m_con_can_exit.wait(m_update_done_mutex);
+     }
 }

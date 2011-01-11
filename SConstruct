@@ -13,7 +13,7 @@ env.Append( LINKFLAGS="-ggdb3 -Wl,--as-needed -Wl,-zdefs " )
 
 
 boostLibs = [ "thread" , "program_options" , "system","unit_test_framework" ]
-otherLibs = ['zmq','yaml-cpp']
+otherLibs = ['zmq','yaml-cpp','glog']
 conf = Configure(env)
 for lib in boostLibs:
     if not conf.CheckLib("boost_%s-mt" % lib):

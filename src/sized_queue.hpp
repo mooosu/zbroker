@@ -1,7 +1,7 @@
 #ifndef _SIZED_QUEUE_HPP_
 #define _SIZED_QUEUE_HPP_
 
-#include <queue>
+#include <deque>
 #include <boost/utility.hpp>
 #include <boost/thread/condition.hpp>
 namespace zbroker{
@@ -24,7 +24,7 @@ namespace zbroker{
      {
           private:
                size_t m_limit_size ;
-               std::queue<T> m_queue;
+               std::deque<T> m_queue;
                boost::condition m_cond_can_push, m_cond_can_pop;
                boost::mutex m_monitor;
           public:
@@ -41,6 +41,9 @@ namespace zbroker{
                }
                size_t size(){ return m_queue.size(); }
                size_t get_limit_size(){ return m_limit_size; }
+               void clear(){
+                    m_queue.clear();
+               }
                T pop(size_t seconds=0) {
                     lock lk(m_monitor);
                     if( m_queue.size() == 0 ){
@@ -57,7 +60,7 @@ namespace zbroker{
                          }
                     }
                     T item = m_queue.front();
-                    m_queue.pop();
+                    m_queue.pop_front();
                     m_cond_can_push.notify_one();
                     return item;
                }
@@ -77,7 +80,7 @@ namespace zbroker{
                          }
 
                     }
-                    m_queue.push(item);
+                    m_queue.push_back(item);
                     m_cond_can_pop.notify_one();
                     return m_queue.size();
                }

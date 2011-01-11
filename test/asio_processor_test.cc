@@ -88,7 +88,7 @@ BOOST_AUTO_TEST_CASE(test_pack_response)
      BOOST_CHECK(string(packet.data()).find("\"response\" : 200")!=string::npos);
 
      pro.pack_response(packet,UnknownCommand);
-     BOOST_CHECK_EQUAL(packet.length(),40);
+     BOOST_CHECK_EQUAL(packet.length(),68);
      BOOST_CHECK(string(packet.data()).find("\"response\" : 500")!=string::npos);
 }
 BOOST_AUTO_TEST_CASE(test_process_read)
@@ -109,10 +109,16 @@ BOOST_AUTO_TEST_CASE(test_process_read)
      }
      BOOST_CHECK_EQUAL( test_bk.query().size() , 888);
 
+     cout << "should open processor" << endl;
+
      asio_processor pro_no_data("xxx");
      string res = pro_no_data.process(m_json_open);
      BOOST_CHECK(string(res).find("\"response\" : 503")==string::npos);
+     BOOST_CHECK(string(res).find("\"response\" : 200")!=string::npos);
      pro_no_data.term();
+
+
+     cout << "should read processor" << endl;
 
      asio_processor pro("xxx");
      res = pro.process(m_json_open);
@@ -179,7 +185,6 @@ BOOST_AUTO_TEST_CASE(test_process_write)
           vector<string> tmp_docs;
           arr.Vals(tmp_docs);
           count += tmp_docs.size();
-          cout << "count:" << count <<endl;
           for( int i =0 ; i< tmp_docs.size() ; i++ ){
                tmp= fromjson(tmp_docs[i]);
                BSONElement id;
@@ -195,6 +200,8 @@ BOOST_AUTO_TEST_CASE(test_process_write)
      BOOST_CHECK_EQUAL(update_queries.size(),888);
      pro.term();
 
+     cout << "should write processor" << endl;
+
      asio_processor pro_write("xxx");
      try{
           res = pro_write.process(m_json_open_write);
@@ -205,7 +212,6 @@ BOOST_AUTO_TEST_CASE(test_process_write)
      } catch ( std::exception &ex){
           cout << "msg:" << ex.what() << endl;
      }
-     pro_write.wait_update_done();
      pro_write.term();
 
      obj = fromjson(m_json_open);

@@ -1,14 +1,21 @@
 #ifndef _BROKER_HPP_
 #define _BROKER_HPP_
+#include "sized_queue.hpp"
 #include <boost/thread/condition.hpp>
 namespace zbroker{
      using namespace std;
-     using namespace mongo;
+     using mongo::OID;
+     using mongo::Query;
+     using mongo::BSONElement;
+     using mongo::BSONObj;
+     using mongo::BSONObjBuilder;
+     using mongo::DBClientCursor;
+     using mongo::DBClientConnection;
      enum mongo_sort{
           Asc = 1,
           Desc = -1
      };
-     class broker: noncopyable{
+     class broker: boost::noncopyable{
           private:
                boost::mutex m_rewind_mutex;
                boost::mutex m_update_done_mutex;
@@ -87,7 +94,12 @@ namespace zbroker{
                void wait_update_done();
 
 
-               void set_exit(){ m_do_exit = true; }
+               void set_exit(){ 
+                    m_do_exit = true; 
+               }
+               void close(){
+                    reset();
+               }
                void rewind() {
                     boost::mutex::scoped_lock lock(m_rewind_mutex);
                     m_last_doc_id.clear();
@@ -99,6 +111,7 @@ namespace zbroker{
                }
                size_t batch_pop( vector<string>&docs, size_t batch_size){
                     BOOST_ASSERT(batch_size > 0 );
+                    LOG(INFO) << "broker::batch_pop: batch_size == " << batch_size << endl;
                     try{
                          for( int i = 0 ; i< batch_size ; i++ ){
                               docs.push_back(pop(3));
