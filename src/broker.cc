@@ -2,8 +2,7 @@
 #include "broker.hpp"
 #include "boost/interprocess/exceptions.hpp"
 #define NO_LOG 1
-using namespace zbroker;
-using namespace boost;
+
 broker::broker()
 {
      reset();

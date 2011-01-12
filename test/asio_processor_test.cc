@@ -1,7 +1,8 @@
 #define BOOST_TEST_DYN_LINK
 #define BOOST_TEST_MODULE asio_processor_test
-#include <iostream>
+
 #include "common.h"
+#include "asio_processor.hpp"
 #include <boost/test/unit_test.hpp>
 
 using namespace std;
@@ -63,7 +64,7 @@ BOOST_AUTO_TEST_CASE(test_parse_request)
      Command cmd=ErrorCmd;
 
      asio_processor pro("xxx");
-     BOOST_CHECK_EQUAL(pro.parse_request(obj,cmd,m_json_string),OK);
+     BOOST_CHECK_EQUAL(asio_processor::parse_request(obj,cmd,m_json_string),OK);
 
 
      BOOST_CHECK_EQUAL(obj.getIntField("port"),27017);
@@ -77,17 +78,17 @@ BOOST_AUTO_TEST_CASE(test_parse_request)
      out_packet packet;
      pro.pack_response(packet,OK,docs);
      asio_processor pro2("xxx");
-     BOOST_CHECK_EQUAL(pro2.parse_request(obj,cmd,m_json_string2),UnknownCommand);
+     BOOST_CHECK_EQUAL(asio_processor::parse_request(obj,cmd,m_json_string2),UnknownCommand);
 }
 BOOST_AUTO_TEST_CASE(test_pack_response)
 {
      out_packet packet;
      asio_processor pro("xxx");
 
-     pro.pack_response(packet,OK );
+     asio_processor::pack_response(packet,OK );
      BOOST_CHECK(string(packet.data()).find("\"response\" : 200")!=string::npos);
 
-     pro.pack_response(packet,UnknownCommand);
+     asio_processor::pack_response(packet,UnknownCommand);
      BOOST_CHECK_EQUAL(packet.length(),68);
      BOOST_CHECK(string(packet.data()).find("\"response\" : 500")!=string::npos);
 }
@@ -132,11 +133,11 @@ BOOST_AUTO_TEST_CASE(test_process_read)
           in_packet packet(res.c_str(),res.size());
           BSONObj tmp = fromjson(packet.body());
           BSONElement e = tmp.getField("docs");
-          BOOST_CHECK_EQUAL(e.type(),Array);
-          vector<string> tmp_docs;
+          BOOST_CHECK_EQUAL(e.type(),Object);
+          vector<BSONObj> tmp_docs;
           e.Obj().Vals(tmp_docs);
           count += tmp_docs.size();
-          if(tmp_docs.back().find("Category_887") != string::npos ){
+          if(tmp_docs.back().jsonString().find("Category_887") != string::npos ){
                found = true;
           }
           res = pro.process(m_json_read);
@@ -181,14 +182,14 @@ BOOST_AUTO_TEST_CASE(test_process_write)
      while( res.find("\"response\" : 503")==string::npos){
           in_packet packet(res.c_str(),res.size());
           BSONObj tmp = fromjson(packet.body());
-          BSONObj arr = tmp.getObjectField("docs");
-          vector<string> tmp_docs;
-          arr.Vals(tmp_docs);
+          BSONObj e  = tmp.getObjectField("docs");
+          vector<BSONElement> tmp_docs;
+          e.elems(tmp_docs);
+
           count += tmp_docs.size();
           for( int i =0 ; i< tmp_docs.size() ; i++ ){
-               tmp= fromjson(tmp_docs[i]);
                BSONElement id;
-               tmp.getObjectID(id);
+               tmp_docs[i].Obj().getObjectID(id);
                sprintf(tmp_buffer,m_json_write.c_str(),id.OID().str().c_str(),id.OID().str().c_str());
                update_queries.push_back(tmp_buffer);
           }

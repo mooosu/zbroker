@@ -3,14 +3,6 @@
 #include "sized_queue.hpp"
 #include <boost/thread/condition.hpp>
 namespace zbroker{
-     using namespace std;
-     using mongo::OID;
-     using mongo::Query;
-     using mongo::BSONElement;
-     using mongo::BSONObj;
-     using mongo::BSONObjBuilder;
-     using mongo::DBClientCursor;
-     using mongo::DBClientConnection;
      enum mongo_sort{
           Asc = 1,
           Desc = -1
@@ -152,4 +144,5 @@ namespace zbroker{
                static string hash(BSONObj &obj);
      };
 };
+using zbroker::broker;
 #endif

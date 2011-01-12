@@ -2,6 +2,7 @@
 #define BOOST_TEST_MODULE broker_test
 #include <iostream>
 #include "common.h"
+#include "broker.hpp"
 #include <boost/test/unit_test.hpp>
 
 using namespace std;

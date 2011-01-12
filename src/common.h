@@ -14,9 +14,18 @@
 //#include "request_handler.hpp"
 //
 #include "request_packet.hpp"
-#include "asio_processor.hpp"
-#include "asio_handler.hpp"
+using std::cout;
+using std::string;
+using std::vector;
 
+using mongo::OID;
+using mongo::Query;
+using mongo::fromjson;
+using mongo::BSONElement;
+using mongo::BSONObj;
+using mongo::BSONObjBuilder;
+using mongo::DBClientCursor;
+using mongo::DBClientConnection;
 
 #endif
 

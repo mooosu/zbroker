@@ -1,6 +1,5 @@
 #include "common.h"
-using std::cout;
-
+#include "asio_handler.hpp"
 
 void connection::start()
 {
