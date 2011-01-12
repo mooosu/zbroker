@@ -28,7 +28,7 @@ module Zbroker
          else
             raise ZbrokerError,"Invalid oid type: #{oid.type}"
          end
-         query = {'_id'=>oid.to_json}
+         query = {'_id'=>oid}
          write(query,doc)
       end
       def write(query,doc)
@@ -49,6 +49,7 @@ end
 
 if __FILE__ == $0
    Flogger.on(Zbroker::ReadProxy,STDOUT)
+   Flogger.on(self.class,STDOUT)
    options={
       :host=>"192.168.1.86",
       :port=>27017,
@@ -61,15 +62,18 @@ if __FILE__ == $0
    client = Zbroker::Client.new(config,[:read,:write])
    client.open(options)
 
-   while(true)
-      begin
-         tmp = client.read
-         updat_queries = []
-         tmp.each{|doc|
-            client.write_by_oid(doc['_id'],{"$set"=>{"rbclient"=>Time.now.to_s}})
-         }
-      rescue=>ex
-         puts ex.message
+   log_benchmark("read items",true) do
+      while(true)
+         begin
+            tmp = client.read
+            updat_queries = []
+            tmp.each{|doc|
+               client.write_by_oid(doc['_id'],{"$set"=>{"brbclient"=>Time.now.to_s}})
+            }
+            break
+         rescue=>ex
+            puts ex.message
+         end
       end
    end
 end
