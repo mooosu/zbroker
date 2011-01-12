@@ -12,6 +12,7 @@ namespace zbroker{
                boost::mutex m_rewind_mutex;
                boost::mutex m_update_done_mutex;
 
+               boost::condition m_con_rewind;
                boost::condition m_con_can_exit;
                size_t m_size;
                zbroker::sized_queue<string> m_queue;
@@ -81,29 +82,20 @@ namespace zbroker{
                vector<string>& query(mongo_sort sort=Asc);
 #endif
                void open(BSONObj* options =NULL );
+               void close(){ reset(); }
                void read(size_t seconds = 0);
                void update();
+               void rewind();
+
+               void set_exit(){ m_do_exit = true; }
                void wait_update_done();
 
-
-               void set_exit(){ 
-                    m_do_exit = true; 
-               }
-               void close(){
-                    reset();
-               }
-               void rewind() {
-                    boost::mutex::scoped_lock lock(m_rewind_mutex);
-                    m_last_doc_id.clear();
-                    m_reach_end = false;
-               }
                string pop(size_t seconds = 0){ 
                     check_status();
                     return m_queue.pop(seconds); 
                }
                size_t batch_pop( vector<string>&docs, size_t batch_size){
                     BOOST_ASSERT(batch_size > 0 );
-                    LOG(INFO) << "broker::batch_pop: batch_size == " << batch_size << endl;
                     try{
                          for( int i = 0 ; i< batch_size ; i++ ){
                               docs.push_back(pop(3));
@@ -140,8 +132,9 @@ namespace zbroker{
                size_t  get_query_doc_count(){ return m_query_doc_count;}
                size_t  get_query_count() { return m_query_count; }
                size_t  get_update_count() { return m_update_count; }
-               string& get_last_doc_id() { return m_last_doc_id; }
                static string hash(BSONObj &obj);
+
+               string& get_last_doc_id();
      };
 };
 using zbroker::broker;

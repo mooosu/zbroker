@@ -25,12 +25,12 @@ struct asio_processor_test
                            \"conditions\":{\"brand\":\"Nokia\"}, \"fields\":{\"category\":1,\"brand\":1,\"status\":1}, \
                            \"upsert\":false,\"multi\":true,\"purpose\":1}}";
           m_json_open  = m_json_string;
-          m_json_read = "{\"cmd\":101, \
+          m_json_read = "{\"cmd\":102, \
                          \"body\":{\"host\":\"192.168.1.86\",\"port\":27017,\"database\":\"zbroker\", \
                          \"collection\":\"broker\",\"parameters\":{\"skip\":0,\"limit\":1000, \"queue_size\":100}, \
                          \"conditions\":{\"brand\":\"Nokia\"}, \"fields\":{\"category\":1,\"brand\":1}, \
                          \"upsert\":false,\"multi\":true,\"purpose\":1}}";
-          m_json_read_no_data = "{\"cmd\":101, \
+          m_json_read_no_data = "{\"cmd\":102, \
                                  \"body\":{\"host\":\"192.168.1.86\",\"port\":27017,\"database\":\"zbroker\", \
                                  \"collection\":\"broker\",\"parameters\":{\"skip\":0,\"limit\":1000, \"queue_size\":100}, \
                                  \"conditions\":{\"brand\":\"123123123\"}, \"fields\":{\"category\":1,\"brand\":1}, \
@@ -48,7 +48,7 @@ struct asio_processor_test
                            \"conditions\":{\"brand\":\"Nokia\"}, \"fields\":{\"category\":1,\"brand\":1,\"status\":1}, \
                            \"upsert\":false,\"multi\":true,\"purpose\":2}}";
 
-          m_json_write = "{\"cmd\":102,\"body\":{\"purpose\":2, \
+          m_json_write = "{\"cmd\":103,\"body\":{\"purpose\":2, \
                           \"docs\":[{\"query\":{\"_id\":{\"$oid\":\"%s\"}}, \
                           \"doc\":{\"brand\":\"Nokia\",\"status\":\"%s\"}, \
                           \"upsert\":false,\"multi\":false}]}}";

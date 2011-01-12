@@ -15,6 +15,7 @@ void asio_processor::term(){
      }
      if( m_write_thread && m_write_broker.connected()){
           LOG(INFO) << "asio_processor::term: write thread is terminiating ==> " << (void*)m_read_thread <<endl;
+          m_write_broker.set_exit();
           m_write_broker.wait_update_done();
           pthread_join(m_write_thread,NULL);
           m_write_thread = NULL;
@@ -69,6 +70,14 @@ string& asio_processor::do_read(out_packet_ptr&packet){
           return pack_response(*packet.get(),NoMoreItem,docs,"do_read no more items");
      }
 }
+bool asio_processor::do_rewind(){
+     bool ret= false;
+     if( m_read_broker.connected() ){
+          m_read_broker.rewind();
+          ret = true;
+     }
+     return ret;
+}
 string& asio_processor::do_write(out_packet_ptr&packet,BSONObj& update){
      BSONObj obj = update.getObjectField("docs");
      vector<BSONObj> docs ;
@@ -101,6 +110,10 @@ string asio_processor::process( Response res, Command cmd , BSONObj& obj ){
                case WRITE:
                     BOOST_ASSERT(m_write_broker.connected());
                     ret = do_write(packet,obj);
+                    break;
+               case REWIND:
+                    do_rewind();
+                    ret = pack_response(*packet.get(),OK,"Rewind Action");
                     break;
                default:
                     throw "UnknownCommand";

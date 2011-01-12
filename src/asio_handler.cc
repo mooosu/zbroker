@@ -16,6 +16,9 @@ void connection::process(in_packet& packet)
      Command cmd;
      string ret;
      Response res =processor::parse_request(obj,cmd,packet.body());
+     LOG(INFO) << "connection::process: cmd == " << cmd << endl;
+
+     DLOG(INFO) << "connection::process: packet.body == " << packet.body() << endl;
      if( m_processor == NULL ){
           string hash ;
           if( cmd != OPEN ){
@@ -26,7 +29,6 @@ void connection::process(in_packet& packet)
           m_processor = m_handler->get_processors().find(hash);
           BOOST_ASSERT(m_processor);
      }
-     LOG(INFO) << "connection::process: m_processor_opened == " << m_processor_opened << endl;
      if( cmd != OPEN ){
           ret =m_processor->process(res,cmd,obj);
      } else {

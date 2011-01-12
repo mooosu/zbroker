@@ -4,7 +4,6 @@ require 'yajl'
 require 'socket'
 require File.expand_path(File.dirname(__FILE__)+'/common.rb')
 require File.expand_path(File.dirname(__FILE__)+'/packet.rb')
-require 'pp'
 module Zbroker
    class Proxy
       include Flogger::Loggable
@@ -13,7 +12,9 @@ module Zbroker
       #  :port=>2765,
       # }
       def initialize(options,purpose)
-         @socket = TCPSocket.new(options[:host],options[:port] || 2765)
+         @host = options[:host]
+         @port = options[:port] || 2765
+         @socket = nil
          @packet_id = nil
          @purpose = purpose
          @default_open={
@@ -30,6 +31,8 @@ module Zbroker
       #  :fields=>['brand','status'],
       # }
       def open( options )
+         raise ZbrokerError,"Alread Opened" if @socket
+         @socket = TCPSocket.new(@host,@port)
          body= @default_open.merge(options)
          body[:purpose] = @purpose
          new_ops = {:cmd=>Command::Open,:body=>body}
@@ -67,11 +70,15 @@ module Zbroker
          response =Yajl::Parser.parse( ret.body )
          [ret,response]
       end
-      def read
-         new_ops = {:cmd=>Command::Read}
-         str = Yajl::Encoder.encode(new_ops)
+      def make_packet( ops )
+         str = Yajl::Encoder.encode(ops)
          packet = Packet.new(str)
          packet.packet_id = @packet_id
+         packet
+      end
+      def read
+         new_ops = {:cmd=>Command::Read}
+         packet = make_packet(new_ops)
          packet,response = send_packet(packet)
          if response["response"] == StatusCode::OK
             response['docs']
@@ -86,12 +93,19 @@ module Zbroker
             docs_hash[i.to_s] = doc
          }
          new_ops[:body]={:docs=>docs_hash}
-         str = Yajl::Encoder.encode(new_ops)
-         packet = Packet.new(str)
-         packet.packet_id = @packet_id
+         packet = make_packet(new_ops)
          packet,response = send_packet(packet)
          if response["response"] == StatusCode::OK
-            packet.packet_id
+            true
+         else
+            raise ZbrokerError,ZbrokerError.error_message(response["response"])
+         end
+      end
+      def rewind
+         new_ops = {:cmd=>Command::Rewind}
+         packet,response = send_packet(make_packet(new_ops))
+         if response["response"] == StatusCode::OK
+            true
          else
             raise ZbrokerError,ZbrokerError.error_message(response["response"])
          end
@@ -101,16 +115,19 @@ module Zbroker
       def initialize(options)
          super(options,Purpose::Read)
       end
-      def write
+      def write(*args)
          raise ZbrokerError,"Can not write to a readonly proxy"
       end
    end
    class WriteProxy < Proxy
       def initialize(options)
-         super(options,Purpose::Read)
+         super(options,Purpose::Write)
       end
-      def read
+      def read(*args)
          raise ZbrokerError,"Can not read from a write only proxy"
+      end
+      def rewind(*args)
+         raise ZbrokerError,"Can not rewind a write only proxy"
       end
    end
 end

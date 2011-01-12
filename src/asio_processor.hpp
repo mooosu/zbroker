@@ -20,10 +20,11 @@ typedef enum {
      ErrorCmd = -1,
      MinCmd = 100,
      OPEN  = 100,
-     READ  = 101,
-     WRITE = 102,
-     CLOSE = 103,
-     MaxCmd = CLOSE
+     CLOSE = 101,
+     READ  = 102,
+     WRITE = 103,
+     REWIND = 106,
+     MaxCmd = REWIND
 }Command;
 typedef enum{
      Read = 1,
@@ -99,12 +100,12 @@ namespace zbroker{
 
                void send_error( Response error );
 
+               string& do_read(out_packet_ptr&packet);
                string& do_write(out_packet_ptr&packet,BSONObj& update);
 
-               string& do_read(out_packet_ptr&packet);
+               bool do_rewind();
 
                string process( Response res, Command cmd , BSONObj& obj );
-
                string process( string& json);
 
 

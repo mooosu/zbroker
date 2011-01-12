@@ -3,3 +3,5 @@ Makefile.in
 configure
 .deps
 config.*
+*.o
+*.swp

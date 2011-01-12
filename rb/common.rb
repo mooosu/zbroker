@@ -15,8 +15,12 @@ module Zbroker
    end
    module Command
       Open  = 100
-      Read  = 101
-      Write = 102
+      Close = 101
+      Read  = 102
+      Write = 103
+      Rewind = 106
+      MinCmd = Open
+      MaxCmd = Rewind
    end
    module Purpose
       Read  = 1

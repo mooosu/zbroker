@@ -1,7 +1,6 @@
 #include "common.h"
 #include "broker.hpp"
 #include "boost/interprocess/exceptions.hpp"
-#define NO_LOG 1
 
 broker::broker()
 {
@@ -31,6 +30,8 @@ void broker::reset()
      m_query_count = 0;
      m_update_count = 0;
      m_has_fields = false;
+
+     boost::mutex::scoped_lock lock(m_rewind_mutex);
      m_last_doc_id.clear();
 }
 string broker::hash(BSONObj& obj){
@@ -83,6 +84,17 @@ void broker::init(BSONObj *options)
           m_queue.clear();
           m_queue.set_size(m_queue_size );
           m_inited = true;
+
+          LOG(INFO) << "broker::init: initialize completed!" << endl;
+          LOG(INFO) << "\t host: " << m_host << endl;
+          LOG(INFO) << "\t port: " << m_port << endl;
+          LOG(INFO) << "\t database: " << m_database << endl;
+          LOG(INFO) << "\t collection: " << m_collection << endl;
+          LOG(INFO) << "\t conditions: " << m_conditions.jsonString() << endl;
+          LOG(INFO) << "\t fields: " << m_fields.jsonString() << endl;
+          LOG(INFO) << "\t limit: " << m_limit << endl;
+          LOG(INFO) << "\t skip: " << m_skip<< endl;
+          LOG(INFO) << "\t queue_size: " << m_queue_size << endl;
      }
 }
 void broker::open(BSONObj* options )
@@ -108,6 +120,16 @@ void broker::check_status()
      if( !m_connected ){
           throw broker_not_connected("broker not connected");
      }
+}
+
+string& broker::get_last_doc_id() { 
+     boost::mutex::scoped_lock lock(m_rewind_mutex);
+     return m_last_doc_id; 
+}
+void broker::rewind() {
+     boost::mutex::scoped_lock lock(m_rewind_mutex);
+     m_last_doc_id.clear();
+     m_reach_end = false;
 }
 vector<string>& broker::query(mongo_sort sort)
 {
@@ -149,12 +171,14 @@ vector<string>& broker::query(mongo_sort sort)
 
 void broker::read(size_t seconds)
 {
+     size_t timeout_count = 0;
      while( !m_do_exit ){
           vector<string> docs = query();
           if( docs.size() == 0 ){
                m_reach_end = true;
-               LOG_IF(INFO,NO_LOG == 0) << "broker::read no more items, sleep(3)" << endl;
+               LOG_IF(INFO,timeout_count % 10 == 0) << "broker::read no more items, sleep(3)" << endl;
                sleep(3);
+               timeout_count++;
                continue;
           }
           for(size_t i = 0 ; !m_do_exit && i< docs.size() ; i++ ){
@@ -181,22 +205,28 @@ void broker::update()
 {
      boost::mutex::scoped_lock lock(m_update_done_mutex);
      string json;
-     while(!m_do_exit){
+     size_t timeout_count = 0;
+     while(true){
           try{
                json =m_queue.pop(3);
-          }catch (broker_timeout&ex){
-               LOG(INFO) << "broker::update broker timeout(3s):" << ex.what() << endl;
-               m_con_can_exit.notify_all();
-               break;
-          }
-          BSONObj obj =fromjson(json);
-          BSONObj query = obj.getObjectField("query");
-          BSONObj doc = obj.getObjectField("doc");
-          bool upsert = obj.getBoolField("upsert");
-          bool multi = obj.getBoolField("multi");
+               BSONObj obj =fromjson(json);
+               BSONObj query = obj.getObjectField("query");
+               BSONObj doc = obj.getObjectField("doc");
+               bool upsert = obj.getBoolField("upsert");
+               bool multi = obj.getBoolField("multi");
 
-          m_connection.update(m_docset,query,doc,upsert,multi);
-          m_update_count ++;
+               m_connection.update(m_docset,query,doc,upsert,multi);
+               m_update_count ++;
+          }catch (broker_timeout&ex){
+               timeout_count ++ ;
+               LOG_IF(INFO,timeout_count % 10 == 0) << "broker::update broker timeout(3s):" << ex.what() << endl;
+               m_con_can_exit.notify_all();
+               if(m_do_exit){
+                    break;
+               } else {
+                    continue;
+               }
+          }
      }
 }
 void broker::wait_update_done()
