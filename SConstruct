@@ -22,17 +22,16 @@ for lib in otherLibs:
    conf.CheckLib(lib)
    
 allClientFiles = []
-allClientFiles += ["src/zbroker_asio.cc","src/broker.cc","src/asio_handler.cc","src/asio_processor.cc"]
+allClientFiles += ["src/zbroker_asio.cc","src/broker.cc","src/asio_handler.cc","src/asio_processor.cc","src/request_packet.cc"]
+
+
+clientEnv = env.Clone();
 
 env.Program( "src/zbroker" , allClientFiles )
 
 
-
 # tests
-clientEnv = env.Clone();
-clientTests = []
-clientTests += [ clientEnv.Program( "test/broker_test" , [ "test/broker_test.cc","src/broker.cc" ] ) ]
-clientTests += [ clientEnv.Program( "test/bson_test" , [ "test/bson_test.cc"] ) ]
-clientTests += [ clientEnv.Program( "test/config_test" , [ "test/config_test.cc"] ) ]
-clientTests += [ clientEnv.Program( "test/asio_processor_test" , ["src/broker.cc","src/asio_processor.cc", "test/asio_processor_test.cc"] ) ]
-# clientTests += [ clientEnv.Program( "test/rh_test" , [ "test/request_handler_test.cc","src/request_handler.cc"] ) ]
+clientEnv.Program( "test/broker_test" , [ "test/broker_test.cc","src/broker.cc" ] ) 
+clientEnv.Program( "test/bson_test" , [ "test/bson_test.cc"] )
+clientEnv.Program( "test/config_test" , [ "test/config_test.cc"] )
+clientEnv.Program( "test/asio_processor_test" , ["src/broker.cc","src/asio_processor.cc", "test/asio_processor_test.cc","src/request_packet.cc"] ) 

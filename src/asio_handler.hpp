@@ -32,6 +32,7 @@ namespace zbroker{
                asio_handler *m_handler;
                processor* m_processor;
                bool   m_processor_opened;
+               string m_send_buffer;
 
           public:
                connection(asio::io_service& io_service,asio_handler* handler):

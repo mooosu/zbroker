@@ -2,11 +2,13 @@
 #define REQUEST_PACKET_HPP
 
 #include <glog/logging.h>
-#include <cstdio>
 #include <cstdlib>
-#include <cstring>
-
-using namespace std; // For strncat and atoi.
+#include <cstdio>
+#include <memory>
+using std::auto_ptr;
+using std::atoi;
+using std::sprintf;
+using std::string;
 
 class packet_header{
      public:
@@ -116,10 +118,6 @@ class out_packet{
           {
                m_packet_id = packet_id;
           }
-          void set_body(string& body)
-          {
-               m_body = body;
-          }
           size_t length()
           {
                return m_data.size();
@@ -127,47 +125,10 @@ class out_packet{
           const char* data(){
                return m_data.data();
           }
-          string& pack()
-          {
-               using namespace std; // For sprintf and memcpy.
-               char buffer[256];
-               size_t total_size = m_body.size()+packet_header::packet_id_length;
-
-               sprintf(buffer, "%16ld",total_size );
-               string tmp = buffer;
-
-               sprintf(buffer, "%32s",m_packet_id.c_str() );
-               m_packet_id = buffer;
-
-               m_data.clear();
-               m_data += tmp;
-               m_data += m_packet_id;
-               m_data += m_body;
-               return m_data;
-          }
+          void set_body(string& body);
+          string pack();
 
 };
 typedef auto_ptr<out_packet> out_packet_ptr;
-/*
-
-
-
-
-          bool unpack()
-          {
-               m_packet_id.assign(m_raw,packet_id_length);
-               m_body.assign(m_raw+packet_id_length,total_size-packet_id_length);
-               return true;
-          }
-     private:
-          string m_body;
-          string m_packet_id;
-          string m_data;
-          size_t m_length;
-          char* m_raw;
-};
-typedef auto_ptr<request_packet> request_packet_ptr;
-*/
-
 
 #endif // REQUEST_PACKET_HPP

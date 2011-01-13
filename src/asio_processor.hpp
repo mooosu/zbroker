@@ -100,8 +100,8 @@ namespace zbroker{
 
                void send_error( Response error );
 
-               string& do_read(out_packet_ptr&packet);
-               string& do_write(out_packet_ptr&packet,BSONObj& update);
+               string do_read(out_packet_ptr&packet);
+               string do_write(out_packet_ptr&packet,BSONObj& update);
 
                bool do_rewind();
 
@@ -114,10 +114,10 @@ namespace zbroker{
 
                static void init_response_builder(BSONObjBuilder&builder,Response res,BSONObj* dataToReturn,const char* extra="");
 
-               static string& get_response_string(out_packet& packet ,BSONObjBuilder& builder);
+               static string get_response_string(out_packet& packet ,BSONObjBuilder& builder);
 
-               static string& pack_response(out_packet& packet,Response res,const char* extra="" ,BSONObj* dataToReturn=NULL);
-               static string& pack_response(out_packet& packet ,Response res , vector<string>& docs,const char* extra="");
+               static string pack_response(out_packet& packet,Response res,const char* extra="" ,BSONObj* dataToReturn=NULL);
+               static string pack_response(out_packet& packet ,Response res , vector<string>& docs,const char* extra="");
 
                static BSONObj toBSONObj(vector<string>& strs );
 

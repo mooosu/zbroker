@@ -61,10 +61,11 @@ void asio_processor::send_error( Response error ){
           error_message* msg = &error_messages[err_no];
      }
 }
-string& asio_processor::do_read(out_packet_ptr&packet){
+string asio_processor::do_read(out_packet_ptr&packet){
      vector<string> docs;
      string ret;
      if( ULONG_MAX != m_read_broker.batch_pop(docs,m_read_broker.get_queue_size()) || docs.size() > 0){
+          LOG(INFO) << "asio_processor::do_read : " << docs.size() << " docs read" << endl;
           return pack_response(*packet.get(),OK,docs,"do_read");
      } else {
           return pack_response(*packet.get(),NoMoreItem,docs,"do_read no more items");
@@ -78,7 +79,7 @@ bool asio_processor::do_rewind(){
      }
      return ret;
 }
-string& asio_processor::do_write(out_packet_ptr&packet,BSONObj& update){
+string asio_processor::do_write(out_packet_ptr&packet,BSONObj& update){
      BSONObj obj = update.getObjectField("docs");
      vector<BSONObj> docs ;
      obj.Vals(docs);
@@ -158,7 +159,7 @@ void asio_processor::init_response_builder(BSONObjBuilder&builder,Response res,B
      if( dataToReturn && !dataToReturn->isEmpty())
           builder.appendElements(*dataToReturn);
 }
-string& asio_processor::get_response_string(out_packet& packet ,BSONObjBuilder& builder)
+string asio_processor::get_response_string(out_packet& packet ,BSONObjBuilder& builder)
 {
      string json =builder.obj().jsonString(); 
      if( json.size() < packet_header::max_body_length){
@@ -169,13 +170,13 @@ string& asio_processor::get_response_string(out_packet& packet ,BSONObjBuilder& 
      packet.set_body(json);
      return packet.pack();
 }
-string& asio_processor::pack_response(out_packet& packet,Response res,const char* extra ,BSONObj* dataToReturn)
+string asio_processor::pack_response(out_packet& packet,Response res,const char* extra ,BSONObj* dataToReturn)
 {
      BSONObjBuilder builder;
      init_response_builder(builder,res,dataToReturn,extra);
      return get_response_string(packet,builder);
 }
-string& asio_processor::pack_response(out_packet& packet ,Response res , vector<string>& docs,const char* extra)
+string asio_processor::pack_response(out_packet& packet ,Response res , vector<string>& docs,const char* extra)
 {
      BSONObjBuilder docs_builder;
      init_response_builder(docs_builder,res,NULL,extra);

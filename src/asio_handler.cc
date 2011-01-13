@@ -14,9 +14,7 @@ void connection::process(in_packet& packet)
 {
      BSONObj obj;
      Command cmd;
-     string ret;
      Response res =processor::parse_request(obj,cmd,packet.body());
-     LOG(INFO) << "connection::process: cmd == " << cmd << endl;
 
      DLOG(INFO) << "connection::process: packet.body == " << packet.body() << endl;
      if( m_processor == NULL ){
@@ -30,20 +28,34 @@ void connection::process(in_packet& packet)
           BOOST_ASSERT(m_processor);
      }
      if( cmd != OPEN ){
-          ret =m_processor->process(res,cmd,obj);
+          m_send_buffer =m_processor->process(res,cmd,obj);
      } else {
           if( ! m_processor_opened ){
-               ret =m_processor->process(res,cmd,obj);
+               m_send_buffer =m_processor->process(res,cmd,obj);
                m_processor_opened = true;
           } else {
                out_packet_ptr packet(new out_packet());
-               ret = processor::pack_response(*packet.get(),AlreadyOpen,"connection::process");
+               m_send_buffer = processor::pack_response(*packet.get(),AlreadyOpen,"connection::process");
           }
      }
-     asio::async_write(m_socket, asio::buffer(ret.c_str(), ret.size()),
+     DLOG(INFO) << "connection::process: send " << m_send_buffer.size() << " bytes" <<endl;
+     asio::async_write(m_socket, asio::buffer(m_send_buffer.c_str(), m_send_buffer.size()),
                boost::bind(&connection::handle_write, shared_from_this(),
                     asio::placeholders::error));
 }
+
+void connection::handle_write(const system::error_code& error)
+{
+     if (!error) {
+          DLOG(INFO) << "connection::handle_write: write done!" << endl;
+     } else {
+
+          LOG(ERROR)<< "connection::handle_write: "  << error.message() << endl;
+          system::error_code ignored_ec;
+          m_socket.shutdown(tcp::socket::shutdown_both, ignored_ec);
+     }
+}
+
 void connection::handle_read_header(const system::error_code& error)
 {
      if (!error )
@@ -85,17 +97,6 @@ void connection::handle_read_body(const system::error_code& error)
      }
 }
 
-void connection::handle_write(const system::error_code& error)
-{
-     if (!error) {
-          LOG(INFO) << "connection::handle_write: write done!" << endl;
-     } else {
-
-          LOG(ERROR)<< "connection::handle_write: "  << error.message() << endl;
-          system::error_code ignored_ec;
-          m_socket.shutdown(tcp::socket::shutdown_both, ignored_ec);
-     }
-}
 
 // ----------------------------------------------------------------------------------//
 
