@@ -151,6 +151,8 @@ vector<string>& broker::query(mongo_sort sort)
      }
      Query query= Query(new_conditions);
      query.sort("_id",(int)sort);
+
+     DLOG(INFO) << "[***query***] " << m_docset << " " << query.toString() << endl;
      if( m_has_fields) fields = &m_fields;
      auto_ptr<DBClientCursor> cursor = m_connection.query(m_docset, 
                query,m_limit,m_skip,fields,queryOptions,batchSize);
@@ -176,11 +178,12 @@ void broker::read(size_t seconds)
           vector<string> docs = query();
           if( docs.size() == 0 ){
                m_reach_end = true;
-               LOG_IF(INFO,timeout_count % 10 == 0) << "broker::read no more items, sleep(3)" << endl;
+               LOG_IF(INFO,timeout_count % 10 == 0) << "broker::read no more items, sleep(3),m_last_doc_id: "  << m_last_doc_id << endl;
                sleep(3);
                timeout_count++;
                continue;
           }
+          m_reach_end = false;
           for(size_t i = 0 ; !m_do_exit && i< docs.size() ; i++ ){
                try{
                     m_queue.push(docs[i],seconds);

@@ -16,7 +16,6 @@ void connection::process(in_packet& packet)
      Command cmd;
      Response res =processor::parse_request(obj,cmd,packet.body());
 
-     DLOG(INFO) << "connection::process: packet.body == " << packet.body() << endl;
      if( m_processor == NULL ){
           string hash ;
           if( cmd != OPEN ){
@@ -38,7 +37,6 @@ void connection::process(in_packet& packet)
                m_send_buffer = processor::pack_response(*packet.get(),AlreadyOpen,"connection::process");
           }
      }
-     DLOG(INFO) << "connection::process: send " << m_send_buffer.size() << " bytes" <<endl;
      asio::async_write(m_socket, asio::buffer(m_send_buffer.c_str(), m_send_buffer.size()),
                boost::bind(&connection::handle_write, shared_from_this(),
                     asio::placeholders::error));
@@ -47,7 +45,7 @@ void connection::process(in_packet& packet)
 void connection::handle_write(const system::error_code& error)
 {
      if (!error) {
-          DLOG(INFO) << "connection::handle_write: write done!" << endl;
+          DLOG(INFO) << "connection::handle_write: " << m_connection_id_string << " write done!" << endl;
      } else {
 
           LOG(ERROR)<< "connection::handle_write: "  << error.message() << endl;

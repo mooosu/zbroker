@@ -33,10 +33,18 @@ namespace zbroker{
                processor* m_processor;
                bool   m_processor_opened;
                string m_send_buffer;
+               size_t m_connection_id;
+               string m_connection_id_string;
+
 
           public:
-               connection(asio::io_service& io_service,asio_handler* handler):
-                    m_socket(io_service), m_handler(handler), m_processor(NULL), m_processor_opened(false){}
+               connection(asio::io_service& io_service,asio_handler* handler,size_t connection_id):
+                    m_socket(io_service), m_handler(handler){
+                         m_connection_id = connection_id;
+                         m_processor = NULL;
+                         m_processor_opened = false;
+                         m_connection_id_string="[conn#"+boost::lexical_cast<std::string>(m_connection_id) + "]";
+                    }
 
                tcp::socket& socket() { return m_socket; }
 
@@ -92,7 +100,7 @@ namespace zbroker{
                connection_ptr make_connection(){
                     m_connection_count ++;
                     LOG(INFO) << "connections: " << m_connection_count << endl;
-                    connection_ptr new_connection(new connection(m_io_service,this));
+                    connection_ptr new_connection(new connection(m_io_service,this,m_connection_count));
                     return new_connection;
                }
                processors& get_processors(){return m_processors;}

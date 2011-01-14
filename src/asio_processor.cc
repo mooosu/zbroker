@@ -3,24 +3,66 @@
 
 void asio_processor::term(){
      if( m_read_thread && m_read_broker.connected()){
-          LOG(INFO) << "asio_processor::term: read thread is terminiating ==> " << (void*)m_read_thread <<endl;
+          LOG(INFO) << red_text("***read thread terminiating***") << "processor id:" << color_id(m_processor_id) <<endl;
           m_read_broker.set_exit();
-          if(m_read_broker.size() > 0 && !m_read_broker.reach_end()){
+          if(m_read_broker.size() > 0 || !m_read_broker.reach_end()){
                vector<string> tmp;
                m_read_broker.batch_pop(tmp,1);
           } 
           pthread_join(m_read_thread,NULL);
           m_read_thread = NULL;
           m_read_broker.close();
+          LOG(INFO) << blue_text("read thread terminiated") << ",processor id:" << color_id(m_processor_id) <<endl;
      }
      if( m_write_thread && m_write_broker.connected()){
-          LOG(INFO) << "asio_processor::term: write thread is terminiating ==> " << (void*)m_read_thread <<endl;
+          LOG(INFO) << red_text("***write thread terminiating***") << "processor id:" << blue_text(m_processor_id) <<endl;
           m_write_broker.set_exit();
           m_write_broker.wait_update_done();
           pthread_join(m_write_thread,NULL);
           m_write_thread = NULL;
           m_write_broker.close();
+          LOG(INFO) << blue_text("write thread terminiated") << ",processor id:" << blue_text(m_processor_id) << endl;
      }
+}
+string& asio_processor::set_purpose_name( Purpose p ){
+     if( m_purpose_name.empty() ){
+          switch(p){
+               case Read:
+                    m_purpose_name = "Read";
+                    break;
+               case Write:
+                    m_purpose_name = "Write";
+                    break;
+               default:
+                    m_purpose_name = "Unkown";
+                    break;
+          }
+     }
+     return m_purpose_name;
+}
+const char* asio_processor::get_command_name( Command cmd)
+{
+     const char* ret =NULL;
+     switch( cmd ){
+          case OPEN:
+               ret = "Open";
+               break;
+          case CLOSE:
+               ret = "Close";
+               break;
+          case READ:
+               ret = "Read";
+               break;
+          case WRITE:
+               ret = "Write";
+               break;
+          case REWIND:
+               ret = "Rewind";
+               break;
+          default:
+               ret = "Unkown";
+     }
+     return ret;
 }
 void asio_processor::open( Purpose p ,BSONObj& obj ){
      switch(p){
@@ -42,17 +84,17 @@ void asio_processor::open( Purpose p ,BSONObj& obj ){
                break;
      }
      m_refcount++;
-     LOG(INFO) << "asio_processor::open m_refcount: " << m_refcount << endl;
+     LOG(INFO) << red_text("\tPurpose:") << color_id(set_purpose_name(p)) << red_text(", refcount => ") << color_id(m_refcount) << endl;
 }
 void asio_processor::close(){
      if( m_refcount > 1 ){
           m_refcount--;
+          LOG(INFO) << red_text("\tPurpose:") << color_id(get_purpose_name())<< red_text(", m_refcount:") << color_id(m_refcount) <<  endl;
      } else {
-          LOG(INFO)<< "asio_processor::close: do term" << endl;
+          LOG(INFO) << red_text("\tPurpose:") << color_id(get_purpose_name()) << red_text(", m_refcount: 0  @term") << endl;
           m_refcount = 0;
           term();
      }
-     LOG(INFO) << "asio_processor::close m_refcount: " << m_refcount << endl;
 }
 
 void asio_processor::send_error( Response error ){
@@ -64,12 +106,14 @@ void asio_processor::send_error( Response error ){
 string asio_processor::do_read(out_packet_ptr&packet){
      vector<string> docs;
      string ret;
+
      if( ULONG_MAX != m_read_broker.batch_pop(docs,m_read_broker.get_queue_size()) || docs.size() > 0){
-          LOG(INFO) << "asio_processor::do_read : " << docs.size() << " docs read" << endl;
-          return pack_response(*packet.get(),OK,docs,"do_read");
+          ret = pack_response(*packet.get(),OK,docs,"do_read");
      } else {
-          return pack_response(*packet.get(),NoMoreItem,docs,"do_read no more items");
+          ret = pack_response(*packet.get(),NoMoreItem,docs,"do_read no more items");
      }
+     LOG(INFO) << "\t" << color_id(docs.size()) << " docs read" ;
+     return ret;
 }
 bool asio_processor::do_rewind(){
      bool ret= false;
@@ -86,12 +130,14 @@ string asio_processor::do_write(out_packet_ptr&packet,BSONObj& update){
      for(int i=0; i< docs.size();i++){
           m_write_broker.push(docs[i].jsonString());
      }
+     LOG(INFO) << "\t" << color_id(docs.size()) << " docs written" ;
      return pack_response(*packet.get(),OK,"do_write");
 }
 
 string asio_processor::process( Response res, Command cmd , BSONObj& obj ){
      string ret ;
      out_packet_ptr packet(new out_packet());
+     LOG(INFO) << "Entering @Processor:#" << color_id(m_processor_id) << ",Comand:" << color_id(get_command_name(cmd));
 
      if( res == OK ){
           packet->set_packet_id(m_processor_id);
@@ -123,6 +169,7 @@ string asio_processor::process( Response res, Command cmd , BSONObj& obj ){
      } else {
           throw "process error";
      }
+     LOG(INFO) << "Leaving @Processor:#" << color_id(m_processor_id) << ",Comand:" << color_id(get_command_name(cmd));
      return ret;
 }
 string asio_processor::process( string& json)

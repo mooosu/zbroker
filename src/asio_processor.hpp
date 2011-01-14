@@ -54,6 +54,7 @@ namespace zbroker{
                string m_processor_id;
                size_t m_refcount;
 
+
                static void* write_thread( void *arg )
                {
                     LOG(INFO) << "write_thread: args == " << arg << endl;
@@ -95,6 +96,7 @@ namespace zbroker{
 
                void open( Purpose p ,BSONObj& obj );
 
+
                void term();
                void close();
 
@@ -120,6 +122,14 @@ namespace zbroker{
                static string pack_response(out_packet& packet ,Response res , vector<string>& docs,const char* extra="");
 
                static BSONObj toBSONObj(vector<string>& strs );
+
+          // for debug log
+          private:
+               string m_purpose_name;
+          public:
+               string& set_purpose_name( Purpose p );
+               string& get_purpose_name( ){ return m_purpose_name; }
+               const char* get_command_name( Command cmd);
 
      };
      typedef asio_processor processor;

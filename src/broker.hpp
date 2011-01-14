@@ -101,7 +101,6 @@ namespace zbroker{
                               docs.push_back(pop(3));
                          }
                     } catch(broker_timeout &ex){
-                         cout << "batch_pop timeout(3s):" << docs.size() << endl;
                          return ULONG_MAX;
                     }
                     return docs.size();

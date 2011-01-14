@@ -14,6 +14,7 @@
 //#include "request_handler.hpp"
 //
 #include "request_packet.hpp"
+#include "color.h"
 using std::cout;
 using std::string;
 using std::vector;
@@ -26,6 +27,11 @@ using mongo::BSONObj;
 using mongo::BSONObjBuilder;
 using mongo::DBClientCursor;
 using mongo::DBClientConnection;
+using zxlib::red_text;
+using zxlib::blue_text;
+using zxlib::red_begin;
+using zxlib::color_end;
+using zxlib::color_id;
 
 #endif
 
