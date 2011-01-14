@@ -45,7 +45,7 @@ void connection::process(in_packet& packet)
 void connection::handle_write(const system::error_code& error)
 {
      if (!error) {
-          DLOG(INFO) << "connection::handle_write: " << m_connection_id_string << " write done!" << endl;
+          DLOG(INFO) << color_id(m_connection_id_string) << " data write done!" << endl;
      } else {
 
           LOG(ERROR)<< "connection::handle_write: "  << error.message() << endl;

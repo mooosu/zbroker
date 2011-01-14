@@ -24,46 +24,6 @@ void asio_processor::term(){
           LOG(INFO) << blue_text("write thread terminiated") << ",processor id:" << blue_text(m_processor_id) << endl;
      }
 }
-string& asio_processor::set_purpose_name( Purpose p ){
-     if( m_purpose_name.empty() ){
-          switch(p){
-               case Read:
-                    m_purpose_name = "Read";
-                    break;
-               case Write:
-                    m_purpose_name = "Write";
-                    break;
-               default:
-                    m_purpose_name = "Unkown";
-                    break;
-          }
-     }
-     return m_purpose_name;
-}
-const char* asio_processor::get_command_name( Command cmd)
-{
-     const char* ret =NULL;
-     switch( cmd ){
-          case OPEN:
-               ret = "Open";
-               break;
-          case CLOSE:
-               ret = "Close";
-               break;
-          case READ:
-               ret = "Read";
-               break;
-          case WRITE:
-               ret = "Write";
-               break;
-          case REWIND:
-               ret = "Rewind";
-               break;
-          default:
-               ret = "Unkown";
-     }
-     return ret;
-}
 void asio_processor::open( Purpose p ,BSONObj& obj ){
      switch(p){
           case Read:
@@ -180,7 +140,9 @@ string asio_processor::process( string& json)
      return process( res,cmd,obj);
 }
 
-
+///////////////////////////////////////////////////////////////
+// Packet helpers
+//////////////////////////////////////////////////////////////
 
 Response asio_processor::parse_request(BSONObj &bodyObj,Command &cmd,const char* json)
 {
@@ -257,4 +219,45 @@ BSONObj asio_processor::toBSONObj(vector<string>& strs )
      tmp += buffer;
      delete buffer;
      return fromjson(tmp);
+}
+
+string& asio_processor::set_purpose_name( Purpose p ){
+     if( m_purpose_name.empty() ){
+          switch(p){
+               case Read:
+                    m_purpose_name = "Read";
+                    break;
+               case Write:
+                    m_purpose_name = "Write";
+                    break;
+               default:
+                    m_purpose_name = "Unkown";
+                    break;
+          }
+     }
+     return m_purpose_name;
+}
+const char* asio_processor::get_command_name( Command cmd)
+{
+     const char* ret =NULL;
+     switch( cmd ){
+          case OPEN:
+               ret = "Open";
+               break;
+          case CLOSE:
+               ret = "Close";
+               break;
+          case READ:
+               ret = "Read";
+               break;
+          case WRITE:
+               ret = "Write";
+               break;
+          case REWIND:
+               ret = "Rewind";
+               break;
+          default:
+               ret = "Unkown";
+     }
+     return ret;
 }
