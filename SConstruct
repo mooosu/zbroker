@@ -1,9 +1,15 @@
+# vim:ft=python:
 import os
 
 zbroker = Environment()
 
-zbroker.Append( CPPPATH=[ "src","/nsourcecode/opensource/mongo-cxx-driver/mongo" ] )
-zbroker.Prepend( LIBPATH=["/nsourcecode/opensource/mongo-cxx-driver"] )
+cpp_path = ["src"]
+mongo_root ="/nsourcecode/opensource/mongo-cxx-driver"
+if not os.path.exists(mongo_root):
+   mongo_root = "/sourcecode/mongo-cxx-driver"
+
+zbroker.Append( CPPPATH=["src","/usr/local/include",mongo_root+"/mongo"])
+zbroker.Prepend( LIBPATH=[mongo_root] )
 
 zbroker.Prepend( LIBS=["libmongoclient.a","libztexting.a"])
 
