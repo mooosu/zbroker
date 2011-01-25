@@ -51,6 +51,7 @@ void connection::handle_write(const system::error_code& error)
           LOG(ERROR)<< "connection::handle_write: "  << error.message() << endl;
           system::error_code ignored_ec;
           m_socket.shutdown(tcp::socket::shutdown_both, ignored_ec);
+          m_socket.close();
      }
 }
 
