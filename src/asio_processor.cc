@@ -206,10 +206,11 @@ BSONObj asio_processor::toBSONObj(vector<string>& strs )
      string tmp = "{ ";
      size_t buffer_len = 2048;
      char* buffer = new char[buffer_len];
+     size_t pad = 36;
      for( ; i< len-1; i++ ){
-          if( buffer_len < strs[i].size()+24 ){
+          if( buffer_len < strs[i].size()+pad ){
                delete buffer;
-               buffer_len +=24;
+               buffer_len = strs[i].size()+pad;
                buffer = new char[buffer_len];
           }
           sprintf(buffer,"\"%ld\" : %s,",i,strs[i].c_str());
