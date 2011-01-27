@@ -173,8 +173,8 @@ string asio_processor::get_response_string(out_packet& packet ,BSONObjBuilder& b
      string json =builder.obj().jsonString(); 
      if( json.size() < packet_header::max_body_length){
      } else {
-          json = BSONObjBuilder().append("response",(int)ResponseToLong).obj().jsonString();
-          LOG(WARNING) << "asio_processor::get_response_string: ResponseToLong" << endl;
+          json = BSONObjBuilder().append("response",(int)ResponseTooLong).obj().jsonString();
+          LOG(WARNING) << "asio_processor::get_response_string: ResponseTooLong" << endl;
      }
      packet.set_body(json);
      return packet.pack();

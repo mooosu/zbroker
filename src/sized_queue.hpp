@@ -39,9 +39,13 @@ namespace zbroker{
                void set_size(size_t size){
                     m_limit_size = size;
                }
-               size_t size(){ return m_queue.size(); }
+               size_t size(){ 
+                    lock lk(m_monitor);
+                    return m_queue.size(); 
+               }
                size_t get_limit_size(){ return m_limit_size; }
                void clear(){
+                    lock lk(m_monitor);
                     m_queue.clear();
                }
                T pop(size_t seconds=0) {

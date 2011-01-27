@@ -35,7 +35,7 @@ Default(zbroker.Program( "src/zbroker" , allClientFiles ))
 
 # tests
 
-zbroker.Program( "test/broker_test" , [ "test/broker_test.cc","src/broker.cc" ] ) 
+zbroker.Program( "test/broker_test" , [ "test/broker_test.cc","src/broker.cc" ,"src/color.cc"] ) 
 zbroker.Program( "test/bson_test" , [ "test/bson_test.cc"] )
 zbroker.Program( "test/config_test" , [ "test/config_test.cc"] )
 zbroker.Program( "test/asio_processor_test" , ["src/broker.cc","src/asio_processor.cc", "test/asio_processor_test.cc","src/request_packet.cc","src/color.cc"] ) 

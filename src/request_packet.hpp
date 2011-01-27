@@ -14,7 +14,7 @@ class packet_header{
      public:
           enum { packet_id_length = 32 };
           enum { header_length = 16 };
-          enum { max_body_length = 1024*1024};
+          enum { max_body_length = 1024*1024*10};
      private:
           char m_header[header_length+1];
           size_t m_body_length;

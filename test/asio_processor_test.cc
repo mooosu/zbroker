@@ -108,7 +108,7 @@ BOOST_AUTO_TEST_CASE(test_process_read)
           sprintf(buffer,json,i);
           test_bk.get_connection().insert(test_bk.get_docset(),fromjson(buffer));
      }
-     BOOST_CHECK_EQUAL( test_bk.query().size() , 888);
+     BOOST_CHECK_EQUAL( test_bk.query().size()+test_bk.size(), 888);
 
      cout << "should open processor" << endl;
 
@@ -220,7 +220,7 @@ BOOST_AUTO_TEST_CASE(test_process_write)
      objBody = obj.getObjectField("body");
      verify_write.open(&objBody);
      vector<string> written_docs = verify_write.query();
-     BOOST_CHECK_EQUAL(written_docs.size() , 888);
+     BOOST_CHECK_EQUAL(written_docs.size() + verify_write.size() , 888);
      for( int i =0 ; i< written_docs.size() ; i++ ){
           BSONObj tmp= fromjson(written_docs[i]);
           BSONElement id;

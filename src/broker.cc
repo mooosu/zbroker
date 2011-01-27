@@ -131,17 +131,11 @@ void broker::rewind() {
      m_last_doc_id.clear();
      m_reach_end = false;
 }
-vector<string>& broker::query(mongo_sort sort)
+
+BSONObj broker::prepare_condition()
 {
-     BSONObj doc;
      BSONObjBuilder builder;
      BSONObj new_conditions;
-     BSONObj *fields=NULL;
-     int queryOptions = 0 ;
-     int batchSize = 0;
-
-     boost::mutex::scoped_lock lock(m_rewind_mutex);
-
      if( !m_last_doc_id.empty() ){
           OID id;
           id.init(m_last_doc_id);
@@ -149,19 +143,45 @@ vector<string>& broker::query(mongo_sort sort)
      } else {
           new_conditions = m_conditions ;
      }
-     Query query= Query(new_conditions);
+     return new_conditions;
+}
+vector<string>& broker::query(mongo_sort sort)
+{
+     BSONObj doc;
+     BSONObj *fields=NULL;
+     int queryOptions = 0 ;
+     int batchSize = 0;
+
+     boost::mutex::scoped_lock lock(m_rewind_mutex);
+
+     Query query(prepare_condition());
      query.sort("_id",(int)sort);
 
-     DLOG(INFO) << "[***query***] " << m_docset << " " << query.toString() << endl;
      if( m_has_fields) fields = &m_fields;
-     auto_ptr<DBClientCursor> cursor = m_connection.query(m_docset, 
-               query,m_limit,m_skip,fields,queryOptions,batchSize);
+
+     
+     auto_ptr<DBClientCursor> cursor; 
+
+     DLOG(INFO) << red_begin() << "[***begin query***] " << m_docset << " " << query.toString() << color_end() << endl;
+
+     cursor = m_connection.query(m_docset, query,m_limit,m_skip,fields,queryOptions,batchSize);
+
+     DLOG(INFO) <<blue_begin() <<  "[***end query***] " << color_end() << endl;
+
+     DLOG(INFO) <<  red_begin() << "[***begin iterating ***] " << color_end()<< endl;
      bool has_docs = cursor->more();
      m_json_doc_cache.clear();
+     size_t count = 0;
      while( cursor->more() ) {
           doc = cursor->next();
-          m_json_doc_cache.push_back(doc.jsonString());
+          if( m_queue.size() < m_queue.get_limit_size()) {
+               m_queue.push(doc.jsonString());
+          } else {
+               m_json_doc_cache.push_back(doc.jsonString());
+          }
      }
+
+     DLOG(INFO) << "[***end iterating ***] " << " doc cache: " << m_json_doc_cache.size() << endl;
      BSONElement e;
      if( has_docs ){
           BOOST_ASSERT( doc.getObjectID(e));
@@ -171,6 +191,18 @@ vector<string>& broker::query(mongo_sort sort)
      return m_json_doc_cache ;
 }
 
+size_t broker::batch_pop( vector<string>&docs, size_t batch_size){
+     BOOST_ASSERT(batch_size > 0 );
+     try{
+          docs.push_back(pop(10));
+          for( int i = 0 ; i< batch_size-1 ; i++ ){
+               docs.push_back(pop(3));
+          }
+     } catch(broker_timeout &ex){
+          return ULONG_MAX;
+     }
+     return docs.size();
+}
 void broker::read(size_t seconds)
 {
      size_t timeout_count = 0;

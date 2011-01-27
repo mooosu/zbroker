@@ -30,15 +30,15 @@ typedef enum{
      Write = 2
 }Purpose;
 typedef enum {
-     MinError       = 500,
-     UnknownCommand = 500,
-     Unimplemented  = 501,
-     RequestTooLong = 502,
-     NoMoreItem     = 503,
-     ResponseToLong = 504,
-     AlreadyOpen    = 505,
+     MinError         = 500,
+     UnknownCommand   = 500,
+     Unimplemented    = 501,
+     RequestTooLong   = 502,
+     NoMoreItem       = 503,
+     ResponseTooLong  = 504,
+     AlreadyOpen      = 505,
      ErrorMax = AlreadyOpen+1,
-     OK             = 200,
+     OK               = 200,
 }Response;
 
 #endif

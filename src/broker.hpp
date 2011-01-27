@@ -14,15 +14,17 @@ namespace zbroker{
 
                boost::condition m_con_rewind;
                boost::condition m_con_can_exit;
-               size_t m_size;
-               zbroker::sized_queue<string> m_queue;
 
+               // docs
+               zbroker::sized_queue<string> m_queue;
+               vector<string> m_json_doc_cache;
+
+
+               // mongo
                string m_connection_string;
                DBClientConnection m_connection;
-
                string m_docset ; 
                string m_last_doc_id;
-               vector<string> m_json_doc_cache;
 
                //config
                BSONObj m_options;
@@ -58,6 +60,7 @@ namespace zbroker{
 #endif
 
                void check_status();
+               BSONObj prepare_condition();
 
           public:
                // @options {
@@ -94,17 +97,8 @@ namespace zbroker{
                     check_status();
                     return m_queue.pop(seconds); 
                }
-               size_t batch_pop( vector<string>&docs, size_t batch_size){
-                    BOOST_ASSERT(batch_size > 0 );
-                    try{
-                         for( int i = 0 ; i< batch_size ; i++ ){
-                              docs.push_back(pop(3));
-                         }
-                    } catch(broker_timeout &ex){
-                         return ULONG_MAX;
-                    }
-                    return docs.size();
-               }
+
+               size_t batch_pop( vector<string>&docs, size_t batch_size);
                size_t push(string str  ){
                     check_status();
                     return m_queue.push(str); 

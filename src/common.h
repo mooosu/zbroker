@@ -30,6 +30,7 @@ using mongo::DBClientConnection;
 using zxlib::red_text;
 using zxlib::blue_text;
 using zxlib::red_begin;
+using zxlib::blue_begin;
 using zxlib::color_end;
 using zxlib::color_id;
 
