@@ -2,6 +2,7 @@
 #define __COMMON_H__
 
 #include "client/dbclient.h"
+#include <boost/progress.hpp>
 #include <boost/assert.hpp>
 #include <glog/logging.h>
 
@@ -18,6 +19,7 @@
 using std::cout;
 using std::string;
 using std::vector;
+using boost::timer;
 
 using mongo::OID;
 using mongo::Query;

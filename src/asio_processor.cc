@@ -72,7 +72,7 @@ string asio_processor::do_read(out_packet_ptr&packet){
      } else {
           ret = pack_response(*packet.get(),NoMoreItem,docs,"do_read no more items");
      }
-     LOG(INFO) << "\t" << color_id(docs.size()) << " docs read" ;
+     LOG(INFO) << red_begin() << docs.size()<< color_end() << " docs read" ;
      return ret;
 }
 bool asio_processor::do_rewind(){
@@ -95,9 +95,9 @@ string asio_processor::do_write(out_packet_ptr&packet,BSONObj& update){
 }
 
 string asio_processor::process( Response res, Command cmd , BSONObj& obj ){
+     timer process_timer;
      string ret ;
      out_packet_ptr packet(new out_packet());
-     LOG(INFO) << "Entering @Processor:#" << color_id(m_processor_id) << ",Comand:" << color_id(get_command_name(cmd));
 
      if( res == OK ){
           packet->set_packet_id(m_processor_id);
@@ -129,7 +129,7 @@ string asio_processor::process( Response res, Command cmd , BSONObj& obj ){
      } else {
           throw "process error";
      }
-     LOG(INFO) << "Leaving @Processor:#" << color_id(m_processor_id) << ",Comand:" << color_id(get_command_name(cmd));
+     LOG(INFO) << "Process " << color_id(get_command_name(cmd)) << " request in " << red_begin() << process_timer.elapsed() << "s" << color_end() ;
      return ret;
 }
 string asio_processor::process( string& json)

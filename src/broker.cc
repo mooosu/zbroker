@@ -25,6 +25,8 @@ void broker::reset()
      m_limit = 0;
      m_skip = 0 ;
      m_queue_size = 0;
+     m_read_timeout = 3;
+     m_read_retry = 3;
      //stats
      m_query_doc_count = 0;
      m_query_count = 0;
@@ -54,7 +56,8 @@ void broker::init(BSONObj *options)
           m_limit = parameters.getIntField("limit");
           m_skip = parameters.getIntField("skip");
           m_queue_size = parameters.getIntField("queue_size");
-
+          m_read_timeout =  parameters.getIntField("read_timeout");
+ 
           m_conditions = m_options.getObjectField("conditions");
           m_fields = m_options.getObjectField("fields");
           m_has_fields = m_fields.isEmpty() == false;
@@ -80,6 +83,11 @@ void broker::init(BSONObj *options)
           if( m_queue_size == INT_MIN ){
                m_queue_size = 100;
           }
+          if( m_read_timeout == INT_MIN ){
+               m_read_timeout = 3;
+          } else if (m_read_timeout < 0 ) {
+               m_read_timeout = 1;
+          }
           m_docset = m_database + "." + m_collection;
           m_queue.clear();
           m_queue.set_size(m_queue_size );
@@ -95,6 +103,8 @@ void broker::init(BSONObj *options)
           LOG(INFO) << "\t limit: " << m_limit << endl;
           LOG(INFO) << "\t skip: " << m_skip<< endl;
           LOG(INFO) << "\t queue_size: " << m_queue_size << endl;
+          LOG(INFO) << "\t read_timeout: " << m_read_timeout << endl;
+          LOG(INFO) << "\t read_retry: " << m_read_retry << endl;
      }
 }
 void broker::open(BSONObj* options )
@@ -147,31 +157,29 @@ BSONObj broker::prepare_condition()
 }
 vector<string>& broker::query(mongo_sort sort)
 {
-     BSONObj doc;
+     boost::mutex::scoped_lock lock(m_rewind_mutex);
+
+     //query 
      BSONObj *fields=NULL;
      int queryOptions = 0 ;
      int batchSize = 0;
-
-     boost::mutex::scoped_lock lock(m_rewind_mutex);
 
      Query query(prepare_condition());
      query.sort("_id",(int)sort);
 
      if( m_has_fields) fields = &m_fields;
 
-     
+     timer query_timer;
      auto_ptr<DBClientCursor> cursor; 
-
-     DLOG(INFO) << red_begin() << "[***begin query***] " << m_docset << " " << query.toString() << color_end() << endl;
-
      cursor = m_connection.query(m_docset, query,m_limit,m_skip,fields,queryOptions,batchSize);
+     double query_elapsed = query_timer.elapsed();
 
-     DLOG(INFO) <<blue_begin() <<  "[***end query***] " << color_end() << endl;
-
-     DLOG(INFO) <<  red_begin() << "[***begin iterating ***] " << color_end()<< endl;
+     // iterating
+     timer iterating_timer;
      bool has_docs = cursor->more();
      m_json_doc_cache.clear();
      size_t count = 0;
+     BSONObj doc;
      while( cursor->more() ) {
           doc = cursor->next();
           if( m_queue.size() < m_queue.get_limit_size()) {
@@ -179,11 +187,13 @@ vector<string>& broker::query(mongo_sort sort)
           } else {
                m_json_doc_cache.push_back(doc.jsonString());
           }
+          count++;
      }
+     LOG(INFO) <<blue_text("query in ") << red_begin() << query_elapsed << "s" <<  color_end() << " & " 
+         << red_begin() <<"iterating "  << count << " docs in " << iterating_timer.elapsed() <<  color_end() ;
 
-     DLOG(INFO) << "[***end iterating ***] " << " doc cache: " << m_json_doc_cache.size() << endl;
-     BSONElement e;
      if( has_docs ){
+          BSONElement e;
           BOOST_ASSERT( doc.getObjectID(e));
           m_last_doc_id = e.OID().str();
      }
@@ -193,15 +203,24 @@ vector<string>& broker::query(mongo_sort sort)
 
 size_t broker::batch_pop( vector<string>&docs, size_t batch_size){
      BOOST_ASSERT(batch_size > 0 );
-     try{
-          docs.push_back(pop(10));
-          for( int i = 0 ; i< batch_size-1 ; i++ ){
-               docs.push_back(pop(3));
+     size_t ret = ULONG_MAX;
+     int timeout = m_read_timeout;
+     int retry= 0 ;
+     do {
+          try{
+               docs.push_back(pop(timeout));
+               for( int i = 0 ; i< batch_size-1 ; i++ ){
+                    docs.push_back(pop(timeout));
+               }
+               ret = docs.size();
+               break;
+          } catch(broker_timeout &ex){
+               retry++;
+               LOG(WARNING) << "retry: " << retry << ",timeout: " << timeout << endl;
+               timeout = m_read_timeout*retry;
           }
-     } catch(broker_timeout &ex){
-          return ULONG_MAX;
-     }
-     return docs.size();
+     }while(m_read_retry>= retry);
+     return ret;
 }
 void broker::read(size_t seconds)
 {

@@ -37,6 +37,8 @@ namespace zbroker{
                int     m_limit;
                int     m_skip;
                int     m_queue_size;
+               int     m_read_timeout;
+               int     m_read_retry;
                //conditions
                BSONObj m_conditions;
                // fields
