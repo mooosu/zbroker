@@ -132,6 +132,17 @@ void broker::check_status()
      }
 }
 
+size_t broker::push(vector<string>& docs )
+{
+     check_status();
+     return m_queue.push(docs); 
+}
+string broker::pop(size_t seconds )
+{ 
+     check_status();
+     return m_queue.pop(seconds); 
+}
+
 string& broker::get_last_doc_id() { 
      boost::mutex::scoped_lock lock(m_rewind_mutex);
      return m_last_doc_id; 
@@ -182,11 +193,7 @@ vector<string>& broker::query(mongo_sort sort)
      BSONObj doc;
      while( cursor->more() ) {
           doc = cursor->next();
-          if( m_queue.size() < m_queue.get_limit_size()) {
-               m_queue.push(doc.jsonString());
-          } else {
-               m_json_doc_cache.push_back(doc.jsonString());
-          }
+          m_json_doc_cache.push_back(doc.jsonString());
           count++;
      }
      LOG(INFO) <<blue_text("query in ") << red_begin() << query_elapsed << "s" <<  color_end() << " & " 
@@ -235,15 +242,11 @@ void broker::read(size_t seconds)
                continue;
           }
           m_reach_end = false;
-          for(size_t i = 0 ; !m_do_exit && i< docs.size() ; i++ ){
+          while( docs.size() > 0 && !m_do_exit ){
                try{
-                    m_queue.push(docs[i],seconds);
+                    m_queue.push(docs,seconds);
                }catch( broker_timeout ex ){
-                    if( m_do_exit ){
-                         break;
-                    } else{
-                         i--;
-                    }
+                    if( m_do_exit ) break;
                }
           }
      }

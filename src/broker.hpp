@@ -19,7 +19,6 @@ namespace zbroker{
                zbroker::sized_queue<string> m_queue;
                vector<string> m_json_doc_cache;
 
-
                // mongo
                string m_connection_string;
                DBClientConnection m_connection;
@@ -95,16 +94,10 @@ namespace zbroker{
                void set_exit(){ m_do_exit = true; }
                void wait_update_done();
 
-               string pop(size_t seconds = 0){ 
-                    check_status();
-                    return m_queue.pop(seconds); 
-               }
+               size_t push(vector<string>& docs );
+               string pop(size_t seconds = 0);
 
                size_t batch_pop( vector<string>&docs, size_t batch_size);
-               size_t push(string str  ){
-                    check_status();
-                    return m_queue.push(str); 
-               }
                size_t size(){
                     check_status();
                     return m_queue.size(); 
