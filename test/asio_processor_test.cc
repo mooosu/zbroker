@@ -137,8 +137,12 @@ BOOST_AUTO_TEST_CASE(test_process_read)
           vector<BSONObj> tmp_docs;
           e.Obj().Vals(tmp_docs);
           count += tmp_docs.size();
-          if(tmp_docs.back().jsonString().find("Category_887") != string::npos ){
-               found = true;
+          cout <<"140: "<<  tmp_docs.back().jsonString()<< endl;
+          for( int i = 0 ; i< tmp_docs.size() ; i++ ){
+               if(tmp_docs[i].jsonString().find("Category_887") != string::npos ){
+                    found = true;
+                    break;
+               }
           }
           res = pro.process(m_json_read);
      }

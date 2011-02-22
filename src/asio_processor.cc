@@ -86,9 +86,13 @@ bool asio_processor::do_rewind(){
 string asio_processor::do_write(out_packet_ptr&packet,BSONObj& update){
      BSONObj obj = update.getObjectField("docs");
      vector<BSONObj> docs ;
+     vector<string> tmp;
      obj.Vals(docs);
      for(int i=0; i< docs.size();i++){
-          m_write_broker.push(docs[i].jsonString());
+          tmp.push_back(docs[i].jsonString());
+     }
+     while( tmp.size() > 0 ){
+          m_write_broker.push(tmp);
      }
      LOG(INFO) << "\t" << color_id(docs.size()) << " docs written" ;
      return pack_response(*packet.get(),OK,"do_write");

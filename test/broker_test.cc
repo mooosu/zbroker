@@ -251,11 +251,13 @@ BOOST_AUTO_TEST_CASE(test_update)
           BSONObj tmp = fromjson(strs[i]);
           BSONElement e;
           tmp.getObjectID(e);
+          vector<string> docs;
           sprintf(buffer,"{\"query\":{\"_id\":{\"$oid\":\"%s\"}}, \
                     \"doc\":{\"brand\":\"updated\",\"status\":1234}, \
                     \"upsert\":false,\"multi\":false}"
                     ,e.OID().str().c_str());
-          bk_update.push(buffer);
+          docs.push_back(buffer);
+          bk_update.push(docs);
      }
      while(bk_update.size() != 0 );
      sleep(1);

@@ -27,7 +27,7 @@ for lib in boostLibs:
 for lib in otherLibs:
    conf.CheckLib(lib)
 
-allClientFiles = ["src/zbroker_asio.cc","src/broker.cc","src/asio_handler.cc","src/asio_processor.cc","src/request_packet.cc","src/color.cc"]
+allClientFiles = ["src/zbroker_asio.cc","src/sized_queue.cc","src/broker.cc","src/asio_handler.cc","src/asio_processor.cc","src/request_packet.cc","src/color.cc"]
 
 
 Default(zbroker.Program( "src/zbroker" , allClientFiles ))
@@ -35,7 +35,8 @@ Default(zbroker.Program( "src/zbroker" , allClientFiles ))
 
 # tests
 
-zbroker.Program( "test/broker_test" , [ "test/broker_test.cc","src/broker.cc" ,"src/color.cc"] ) 
-zbroker.Program( "test/bson_test" , [ "test/bson_test.cc"] )
-zbroker.Program( "test/config_test" , [ "test/config_test.cc"] )
-zbroker.Program( "test/asio_processor_test" , ["src/broker.cc","src/asio_processor.cc", "test/asio_processor_test.cc","src/request_packet.cc","src/color.cc"] ) 
+test1=zbroker.Program( "test/broker_test" , [ "src/sized_queue.cc","test/broker_test.cc","src/broker.cc" ,"src/color.cc"] ) 
+test2=zbroker.Program( "test/bson_test" , [ "test/bson_test.cc"] )
+test3=zbroker.Program( "test/config_test" , [ "test/config_test.cc"] )
+test4=zbroker.Program( "test/asio_processor_test" , ["src/broker.cc","src/sized_queue.cc","src/asio_processor.cc", "test/asio_processor_test.cc","src/request_packet.cc","src/color.cc"] ) 
+zbroker.Alias('check',[test1,test2,test3,test4])
