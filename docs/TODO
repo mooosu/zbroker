@@ -1,0 +1,9 @@
+1, add push variant of sized_queue ,
+   size_t pop(vector<T>& docs , size_t pop_count );
+   从当前队列中取出<= pop_count(queue中可能没有足够的文档)个文档，添加到docs;
+
+2, 根据连接数增加m_limit和m_queue_size的大小
+   m_limit = m_limit * count_connection;
+   m_queue_size = m_limit * count_connection;
+
+3, 多线程支持.
