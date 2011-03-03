@@ -15,6 +15,6 @@ describe Zbroker::ReadProxy do
       docs1 = client.read
       docs2 = client.read
       client.rewind
-      client.read.should == docs1
+      client.read[0,10].should == docs1[0,10]
    end
 end

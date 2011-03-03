@@ -72,7 +72,7 @@ string asio_processor::do_read(out_packet_ptr&packet){
      } else {
           ret = pack_response(*packet.get(),NoMoreItem,docs,"do_read no more items");
      }
-     LOG(INFO) << red_begin() << docs.size()<< color_end() << " docs read" ;
+     LOG(INFO) << red_begin() << docs.size()<< color_end() << " sent to client" ;
      return ret;
 }
 bool asio_processor::do_rewind(){

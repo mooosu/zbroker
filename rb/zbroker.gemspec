@@ -1,7 +1,7 @@
 Gem::Specification.new do |s|
   s.name    = 'zbroker'
-  s.version = '0.0.1'
-  s.date    = '2011-01-12'
+  s.version = '0.0.2'
+  s.date    = '2011-03-03'
   s.rubyforge_project = "zbroker"
   
   s.summary = "A Ruby interface to the Zbroker"

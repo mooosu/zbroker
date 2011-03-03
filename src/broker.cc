@@ -26,8 +26,8 @@ void broker::reset()
      m_limit = 0;
      m_skip = 0 ;
      m_queue_size = 0;
-     m_read_timeout = 3;
-     m_read_retry = 3;
+     m_read_timeout = 1;
+     m_read_retry = 1;
      //stats
      m_query_doc_count = 0;
      m_query_count = 0;
@@ -85,7 +85,7 @@ void broker::init(BSONObj *options)
                m_queue_size = m_limit * 5;
           }
           if( m_read_timeout == INT_MIN ){
-               m_read_timeout = 3;
+               m_read_timeout = 1;
           } else if (m_read_timeout < 0 ) {
                m_read_timeout = 1;
           }
@@ -202,8 +202,8 @@ vector<string>& broker::query(mongo_sort sort)
           m_json_doc_cache.push_back(doc.jsonString());
           count++;
      }
-     LOG(INFO) <<blue_text("query in ") << red_begin() << query_elapsed << "s" <<  color_end() << " & " 
-         << red_begin() <<"iterating "  << count << " docs in " << iterating_timer.elapsed() <<  color_end() ;
+     LOG(INFO) << red_text(m_docset) << blue_text("(querying: ") << red_begin() << query_elapsed << "s)" <<  color_end() << endl;
+     LOG(INFO) << red_text(m_docset) << blue_text("(iterating: ") << red_begin() << "(count: " << count << ")"  << iterating_timer.elapsed() << "s)" <<  color_end() << endl;
 
      if( has_docs ){
           boost::mutex::scoped_lock lock(m_rewind_mutex);
