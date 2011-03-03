@@ -1,14 +1,13 @@
-require File.expand_path(File.dirname(__FILE__) +"/../rb/rbclient.rb")
+require File.expand_path(File.dirname(__FILE__) +"/../lib/zbroker.rb")
 describe Zbroker::ReadProxy do
    it "should rewind" do
       Flogger.on(Zbroker::ReadProxy,STDOUT)
       options={
-         :host=>"192.168.1.86",
+         :host=>"192.168.1.110",
          :port=>27017,
-         :database=>"zbroker",
-         :collection=>"broker",
-         :conditions=>{'brand'=>'Nokia'},
-         :fields=>{'brand'=>1,'status'=>1},
+         :database=>"zbot_20110216",
+         :collection=>"info",
+         :conditions=>{'identifier'=>'360buy'},
       }
       config = {:host=>'localhost',:port=>2765}
       client = Zbroker::Client.new(config,[:read])

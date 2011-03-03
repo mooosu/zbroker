@@ -19,7 +19,7 @@ zbroker.Append( LINKFLAGS="-ggdb3 -Wl,--as-needed -Wl,-zdefs " )
 
 
 boostLibs = [ "thread" , "program_options" , "system","unit_test_framework" ]
-otherLibs = ['zmq','yaml-cpp','glog']
+otherLibs = ['zmq','yaml-cpp','glog','pcre++']
 conf = Configure(zbroker)
 for lib in boostLibs:
     if not conf.CheckLib("boost_%s-mt" % lib):

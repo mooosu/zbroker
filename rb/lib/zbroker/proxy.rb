@@ -18,7 +18,7 @@ module Zbroker
          @packet_id = nil
          @purpose = purpose
          @default_open={
-            :parameters=>{:skip=>0,:limit=>500,:queue_size=>500},
+            :parameters=>{:skip=>0,:limit=>500},
             :upsert=>false,:multi=>false
          }.freeze
       end
@@ -79,12 +79,17 @@ module Zbroker
       def read
          new_ops = {:cmd=>Command::Read}
          packet = make_packet(new_ops)
+         elapsed = Time.now
          packet,response = send_packet(packet)
+         ret = nil
          if response["response"] == StatusCode::OK
-            response['docs']
+            ret = response['docs']
          else
             raise ZbrokerError,ZbrokerError.error_message(response["response"])
          end
+         elapsed = Time.now - elapsed
+         debug(' read elapsed: ' + elapsed.to_s )
+         ret
       end
       def write(docs)
          new_ops = {:cmd=>Command::Write}

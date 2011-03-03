@@ -11,9 +11,11 @@ namespace zbroker{
           private:
                boost::mutex m_rewind_mutex;
                boost::mutex m_update_done_mutex;
+               boost::mutex m_query_done_mutex;
 
                boost::condition m_con_rewind;
                boost::condition m_con_can_exit;
+               boost::condition m_con_query;
 
                // docs
                zbroker::sized_queue<string> m_queue;
@@ -49,6 +51,7 @@ namespace zbroker{
                bool    m_connected;
                bool    m_reach_end;
                bool    m_has_fields;
+               bool    m_querying;
                // stats
                size_t m_query_doc_count;
                size_t m_query_count;

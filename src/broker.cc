@@ -17,6 +17,7 @@ broker::~broker()
 void broker::reset()
 {
      m_do_exit = false;
+     m_querying = false;
 
      m_inited = false;
      m_connected = false;
@@ -81,7 +82,7 @@ void broker::init(BSONObj *options)
                m_skip = 0 ;
           }
           if( m_queue_size == INT_MIN ){
-               m_queue_size = 100;
+               m_queue_size = m_limit * 5;
           }
           if( m_read_timeout == INT_MIN ){
                m_read_timeout = 3;
@@ -168,12 +169,12 @@ BSONObj broker::prepare_condition()
 }
 vector<string>& broker::query(mongo_sort sort)
 {
-     boost::mutex::scoped_lock lock(m_rewind_mutex);
 
      //query 
      BSONObj *fields=NULL;
      int queryOptions = 0 ;
      int batchSize = 0;
+     m_querying = true;
 
      Query query(prepare_condition());
      query.sort("_id",(int)sort);
@@ -182,7 +183,12 @@ vector<string>& broker::query(mongo_sort sort)
 
      timer query_timer;
      auto_ptr<DBClientCursor> cursor; 
-     cursor = m_connection.query(m_docset, query,m_limit,m_skip,fields,queryOptions,batchSize);
+     {
+
+          boost::mutex::scoped_lock lock(m_query_done_mutex );
+          cursor = m_connection.query(m_docset, query,m_limit,m_skip,fields,queryOptions,batchSize);
+          m_con_query.notify_all();
+     }
      double query_elapsed = query_timer.elapsed();
 
      // iterating
@@ -200,11 +206,13 @@ vector<string>& broker::query(mongo_sort sort)
          << red_begin() <<"iterating "  << count << " docs in " << iterating_timer.elapsed() <<  color_end() ;
 
      if( has_docs ){
+          boost::mutex::scoped_lock lock(m_rewind_mutex);
           BSONElement e;
           BOOST_ASSERT( doc.getObjectID(e));
           m_last_doc_id = e.OID().str();
      }
      m_query_count ++;
+     m_querying = false;
      return m_json_doc_cache ;
 }
 
@@ -222,8 +230,11 @@ size_t broker::batch_pop( vector<string>&docs, size_t batch_size){
                ret = docs.size();
                break;
           } catch(broker_timeout &ex){
+               if(m_querying ) {
+                    m_con_query.wait(m_query_done_mutex);
+               }
                retry++;
-               LOG(WARNING) << "retry: " << retry << ",timeout: " << timeout << endl;
+               LOG(WARNING) << "batch_pop retry: " << retry << ",timeout: " << timeout << endl;
                timeout = m_read_timeout*retry;
           }
      }while(m_read_retry>= retry);

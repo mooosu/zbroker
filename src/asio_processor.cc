@@ -67,7 +67,7 @@ string asio_processor::do_read(out_packet_ptr&packet){
      vector<string> docs;
      string ret;
 
-     if( ULONG_MAX != m_read_broker.batch_pop(docs,m_read_broker.get_queue_size()) || docs.size() > 0){
+     if( ULONG_MAX != m_read_broker.batch_pop(docs,m_read_broker.get_limit()) || docs.size() > 0){
           ret = pack_response(*packet.get(),OK,docs,"do_read");
      } else {
           ret = pack_response(*packet.get(),NoMoreItem,docs,"do_read no more items");
