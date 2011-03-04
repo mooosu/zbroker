@@ -34,7 +34,6 @@ void broker::reset()
      m_update_count = 0;
      m_has_fields = false;
 
-     boost::mutex::scoped_lock lock(m_rewind_mutex);
      m_last_doc_id.clear();
 }
 string broker::hash(BSONObj& obj){
@@ -169,50 +168,58 @@ BSONObj broker::prepare_condition()
 }
 vector<string>& broker::query(mongo_sort sort)
 {
-
-     //query 
-     BSONObj *fields=NULL;
-     int queryOptions = 0 ;
-     int batchSize = 0;
+     double query_elapsed = 0.0f;
+     double iterate_elapsed = 0.0f;
+     boost::mutex::scoped_lock lock( m_query_done_mutex );
+     // set query flag
      m_querying = true;
-
-     Query query(prepare_condition());
-     query.sort("_id",(int)sort);
-
-     if( m_has_fields) fields = &m_fields;
-
-     timer query_timer;
-     auto_ptr<DBClientCursor> cursor; 
      {
+          timer query_timer;
 
-          boost::mutex::scoped_lock lock(m_query_done_mutex );
+          int queryOptions = 0 ;
+          int batchSize = 0;
+          Query query(prepare_condition());
+          BSONObj *fields=NULL;
+          auto_ptr<DBClientCursor> cursor; 
+
+          //prepare condition and parameters
+          query.sort("_id",(int)sort); // sort default: asc
+          if( m_has_fields) fields = &m_fields;
+
           cursor = m_connection.query(m_docset, query,m_limit,m_skip,fields,queryOptions,batchSize);
+          query_elapsed = query_timer.elapsed();
+
+          // iterating
+          timer iterating_timer;
+          BSONObj doc;
+          bool has_docs = cursor->more();
+          m_json_doc_cache.clear();
+          while( cursor->more() ) {
+               doc = cursor->next();
+               m_json_doc_cache.push_back(doc.jsonString());
+          }
+          iterate_elapsed = iterating_timer.elapsed();
+
+          // set last doc_id if the query returned docs
+          if( has_docs ){
+               boost::mutex::scoped_lock lock(m_rewind_mutex);
+               BSONElement e;
+               BOOST_ASSERT( doc.getObjectID(e));
+               m_last_doc_id = e.OID().str();
+          }
+          m_query_count ++;
+          m_querying = false;
           m_con_query.notify_all();
      }
-     double query_elapsed = query_timer.elapsed();
 
-     // iterating
-     timer iterating_timer;
-     bool has_docs = cursor->more();
-     m_json_doc_cache.clear();
-     size_t count = 0;
-     BSONObj doc;
-     while( cursor->more() ) {
-          doc = cursor->next();
-          m_json_doc_cache.push_back(doc.jsonString());
-          count++;
-     }
-     LOG(INFO) << red_text(m_docset) << blue_text("(querying: ") << red_begin() << query_elapsed << "s)" <<  color_end() << endl;
-     LOG(INFO) << red_text(m_docset) << blue_text("(iterating: ") << red_begin() << "(count: " << count << ")"  << iterating_timer.elapsed() << "s)" <<  color_end() << endl;
+     // log querying elapsed
+     LOG(INFO) << red_text(m_docset) << blue_text("(querying: ") << 
+          red_begin() << query_elapsed << "s)" <<  color_end() << endl;
 
-     if( has_docs ){
-          boost::mutex::scoped_lock lock(m_rewind_mutex);
-          BSONElement e;
-          BOOST_ASSERT( doc.getObjectID(e));
-          m_last_doc_id = e.OID().str();
-     }
-     m_query_count ++;
-     m_querying = false;
+     // log iterating elapsed
+     LOG(INFO) << red_text(m_docset) << blue_text("(iterating: ") <<
+          red_begin() << "(count: " << m_json_doc_cache.size() << ")"  << 
+          iterate_elapsed << "s)" <<  color_end() << endl;
      return m_json_doc_cache ;
 }
 
