@@ -241,7 +241,9 @@ size_t broker::batch_pop( vector<string>&docs, size_t batch_size){
                     m_con_query.wait(m_query_done_mutex);
                }
                retry++;
-               LOG(WARNING) << "batch_pop retry: " << retry << ",timeout: " << timeout << endl;
+               LOG(WARNING) << "batch_pop retry: " << retry << ",timeout: " << timeout 
+                    <<",queue size: " << m_queue.size() 
+                    <<",batch size: " << batch_size << endl;
                timeout = m_read_timeout*retry;
           }
      }while(m_read_retry>= retry);

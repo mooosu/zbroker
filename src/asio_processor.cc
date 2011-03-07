@@ -64,6 +64,8 @@ void asio_processor::send_error( Response error ){
      }
 }
 string asio_processor::do_read(out_packet_ptr&packet){
+
+     timer read_timer;
      vector<string> docs;
      string ret;
 
@@ -72,7 +74,8 @@ string asio_processor::do_read(out_packet_ptr&packet){
      } else {
           ret = pack_response(*packet.get(),NoMoreItem,docs,"do_read no more items");
      }
-     LOG(INFO) << red_begin() << docs.size()<< color_end() << " sent to client" ;
+     LOG(INFO) << red_begin() << docs.size()<< color_end() 
+          << " sent to client(in " << read_timer.elapsed() << "s)" ;
      return ret;
 }
 bool asio_processor::do_rewind(){
